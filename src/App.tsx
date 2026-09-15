@@ -3,6 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthScreen } from "./components/AuthScreen";
 import { OnboardingScreen } from "./components/OnboardingScreen";
+import { ResetPasswordScreen } from "./components/ResetPasswordScreen";
 import { supabase } from "./lib/supabase";
 import { getMyStores } from "./lib/marketSyncApi";
 import { AppShell } from "./shared/AppShell";
@@ -23,6 +24,7 @@ const SELECTED_STORE_KEY = "marketsync:selectedStoreId";
 function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [loadingSession, setLoadingSession] = useState(Boolean(supabase));
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [hasStore, setHasStore] = useState<boolean | null>(null);
   const [allStores, setAllStores] = useState<
     Array<{ id: string; name: string; organizationId: string }>
@@ -43,9 +45,10 @@ function App() {
     });
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) =>
-      setSession(nextSession),
-    );
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (event === "PASSWORD_RECOVERY") setPasswordRecovery(true);
+      setSession(nextSession);
+    });
     return () => subscription.unsubscribe();
   }, []);
 
@@ -82,6 +85,8 @@ function App() {
 
   if (loadingSession)
     return <main className="auth-page">Carregando acesso seguro…</main>;
+  if (supabase && passwordRecovery)
+    return <ResetPasswordScreen onDone={() => setPasswordRecovery(false)} />;
   if (supabase && !session) return <AuthScreen />;
   if (supabase && hasStore === null)
     return <main className="auth-page">Carregando sua operação…</main>;

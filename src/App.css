@@ -1406,7 +1406,13 @@ footer span:last-child {
   font-weight: 750;
   color: #435167;
 }
-.auth-card input {
+.auth-form-row {
+  display: grid;
+  grid-template-columns: 1fr 90px;
+  gap: 10px;
+}
+.auth-card input,
+.auth-card select {
   height: 42px;
   border: 1px solid #dce3e8;
   border-radius: 7px;
@@ -1435,12 +1441,29 @@ footer span:last-child {
 .auth-message {
   font-size: 11px;
   line-height: 1.4;
-  background: #fff7e2;
-  color: #8b6515;
   border-radius: 6px;
   padding: 9px;
 }
+.auth-message.info {
+  background: #fff7e2;
+  color: #8b6515;
+}
+.auth-message.error {
+  background: #fff1ef;
+  color: #b23d34;
+}
+.auth-forgot {
+  display: block;
+  border: 0;
+  background: none;
+  color: #7b8798;
+  font-size: 11px;
+  margin-top: 12px;
+  padding: 0;
+  text-decoration: underline;
+}
 .auth-switch {
+  display: block;
   border: 0;
   background: none;
   color: #167a62;

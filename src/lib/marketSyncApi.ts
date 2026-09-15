@@ -25,10 +25,34 @@ export async function signUp(fullName: string, email: string, password: string) 
   return client().auth.signUp({ email, password, options: { data: { full_name: fullName } } })
 }
 
+export async function requestPasswordReset(email: string) {
+  const redirectTo = `${window.location.origin}${import.meta.env.BASE_URL}`
+  const { error } = await client().auth.resetPasswordForEmail(email, { redirectTo })
+  if (error) throw error
+}
+
+// Supabase Auth's own error messages come back in English; this maps the ones users actually hit
+// on this screen to Portuguese, and falls back to the raw message for anything unmapped instead
+// of hiding it.
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  'Invalid login credentials': 'E-mail ou senha incorretos.',
+  'User already registered': 'Este e-mail já está cadastrado. Tente entrar.',
+  'Email not confirmed': 'Confirme seu e-mail antes de entrar — verifique sua caixa de entrada.',
+  'Email rate limit exceeded': 'Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.',
+  'Password should be at least 6 characters': 'A senha precisa ter pelo menos 6 caracteres.',
+  'Signup requires a valid password': 'Informe uma senha válida.',
+  'For security purposes, you can only request this after 60 seconds.':
+    'Por segurança, aguarde 60 segundos antes de pedir outro e-mail.',
+}
+
+export function translateAuthError(message: string): string {
+  return AUTH_ERROR_MESSAGES[message] ?? message
+}
+
 export async function createFirstStore(organizationName: string, storeName: string) {
   const { data, error } = await client().rpc('bootstrap_store', { organization_name: organizationName, store_name: storeName })
   if (error) throw error
-  return data
+  return data as { id: string; name: string; organization_id: string }
 }
 
 export async function getMyStores() {
