@@ -5,6 +5,7 @@ import {
   CalendarClock,
   CircleAlert,
   ClipboardList,
+  Radio,
   Users,
 } from "lucide-react";
 import {
@@ -22,6 +23,38 @@ type PendingAction = {
   to: string;
   tone: "bad" | "warn" | "neutral";
 };
+type TodayStatus = {
+  employeeId: string;
+  name: string;
+  sector: string;
+  status: "working" | "break" | "upcoming" | "done";
+  detail: string;
+};
+
+function firstOfSector(value: unknown): string {
+  const sectors = (value as { sectors?: { name?: string } | { name?: string }[] } | null)?.sectors;
+  const name = Array.isArray(sectors) ? sectors[0]?.name : sectors?.name;
+  return name ?? "Sem setor";
+}
+
+function statusNow(
+  segments: Array<{ sequence: number; starts_at: string; ends_at: string }>,
+  now: number,
+): { status: TodayStatus["status"]; detail: string } {
+  const ordered = [...segments].sort((a, b) => a.sequence - b.sequence);
+  if (ordered.length === 0) return { status: "upcoming", detail: "Sem horário definido" };
+  for (const segment of ordered) {
+    const start = new Date(segment.starts_at).getTime();
+    const end = new Date(segment.ends_at).getTime();
+    if (now >= start && now < end) return { status: "working", detail: `Até ${segment.ends_at.slice(11, 16)}` };
+  }
+  const first = ordered[0], last = ordered[ordered.length - 1];
+  const firstStart = new Date(first.starts_at).getTime();
+  const lastEnd = new Date(last.ends_at).getTime();
+  if (now < firstStart) return { status: "upcoming", detail: `Turno às ${first.starts_at.slice(11, 16)}` };
+  if (now >= lastEnd) return { status: "done", detail: `Encerrou às ${last.ends_at.slice(11, 16)}` };
+  return { status: "break", detail: "Em intervalo" };
+}
 
 export function DashboardPage() {
   const store = useStore();
@@ -35,6 +68,21 @@ export function DashboardPage() {
   const [critical, setCritical] = useState(0);
   const [warnings, setWarnings] = useState(0);
   const [validated, setValidated] = useState(false);
+  const [todayRows, setTodayRows] = useState<
+    Array<{
+      employeeId: string;
+      name: string;
+      sector: string;
+      dayType: string;
+      segments: Array<{ sequence: number; starts_at: string; ends_at: string }>;
+    }>
+  >([]);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 60000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (!store) return;
@@ -60,23 +108,33 @@ export function DashboardPage() {
         }
         setHasSchedule(Boolean(week));
         let filled = 0;
+        const today = todayIso();
+        const todayList: typeof todayRows = [];
         if (week) {
           for (const entry of week.entries) {
             const segments = entry.shift_segments ?? [];
-            if (entry.day_type !== "work" || segments.length < 2) continue;
-            filled += 1;
-            const employeeValue = entry.employees as unknown as
-              | { sectors?: { name?: string } | { name?: string }[] }
-              | { sectors?: { name?: string } | { name?: string }[] }[]
-              | null;
-            const employee = Array.isArray(employeeValue) ? employeeValue[0] : employeeValue;
-            const sectorValue = employee?.sectors;
-            const sectorName =
-              (Array.isArray(sectorValue) ? sectorValue[0]?.name : sectorValue?.name) ??
-              "Sem setor";
-            filledBySector.set(sectorName, (filledBySector.get(sectorName) ?? 0) + 1);
+            if (entry.day_type === "work" && segments.length >= 2) {
+              filled += 1;
+              const sectorName = firstOfSector(entry.employees);
+              filledBySector.set(sectorName, (filledBySector.get(sectorName) ?? 0) + 1);
+            }
+            if (entry.work_date === today) {
+              const employeeValue = entry.employees as unknown as
+                | { full_name?: string }
+                | { full_name?: string }[]
+                | null;
+              const employee = Array.isArray(employeeValue) ? employeeValue[0] : employeeValue;
+              todayList.push({
+                employeeId: entry.employee_id,
+                name: employee?.full_name ?? "Colaborador",
+                sector: firstOfSector(entry.employees),
+                dayType: entry.day_type,
+                segments,
+              });
+            }
           }
         }
+        setTodayRows(todayList);
         setFilledSlots(filled);
         setTotalSlots(roster.length * 7);
         setCoverage(
@@ -92,6 +150,17 @@ export function DashboardPage() {
       })
       .finally(() => setLoading(false));
   }, [store, weekStart]);
+
+  const todayStatuses = useMemo<TodayStatus[]>(() => {
+    const working: TodayStatus[] = [];
+    for (const row of todayRows) {
+      if (row.dayType !== "work") continue;
+      const { status, detail } = statusNow(row.segments, now);
+      working.push({ employeeId: row.employeeId, name: row.name, sector: row.sector, status, detail });
+    }
+    const order: Record<TodayStatus["status"], number> = { working: 0, break: 1, upcoming: 2, done: 3 };
+    return working.sort((a, b) => order[a.status] - order[b.status] || a.name.localeCompare(b.name));
+  }, [todayRows, now]);
 
   if (!store) return null;
 
@@ -202,6 +271,27 @@ export function DashboardPage() {
             Abrir escala da semana
           </Link>
         </div>
+      </section>
+      <section className="working-now-card">
+        <h2>
+          <Radio size={15} /> Quem está trabalhando agora
+        </h2>
+        {todayStatuses.length === 0 ? (
+          <p className="empty">Ninguém escalado para trabalhar hoje.</p>
+        ) : (
+          <div className="working-now-list">
+            {todayStatuses.map((person) => (
+              <div className={`working-now-row ${person.status}`} key={person.employeeId}>
+                <span className="working-now-dot" />
+                <div>
+                  <strong>{person.name}</strong>
+                  <small>{person.sector}</small>
+                </div>
+                <span className="working-now-detail">{person.detail}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </>
   );
