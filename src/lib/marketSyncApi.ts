@@ -775,6 +775,49 @@ export async function createBranchStore(input: {
   return data as { id: string; name: string; organization_id: string }
 }
 
+export type ShiftTemplateRow = {
+  id: string
+  name: string
+  start_time: string
+  break_start_time: string
+  break_end_time: string
+  end_time: string
+}
+
+export async function loadShiftTemplates(storeId: string) {
+  const { data, error } = await client()
+    .from('shift_templates')
+    .select('id,name,start_time,break_start_time,break_end_time,end_time')
+    .eq('store_id', storeId)
+    .order('name')
+  if (error) throw error
+  return (data ?? []) as ShiftTemplateRow[]
+}
+
+export async function addShiftTemplate(input: {
+  storeId: string
+  name: string
+  startTime: string
+  breakStartTime: string
+  breakEndTime: string
+  endTime: string
+}) {
+  const { error } = await client().from('shift_templates').insert({
+    store_id: input.storeId,
+    name: input.name.trim(),
+    start_time: input.startTime,
+    break_start_time: input.breakStartTime,
+    break_end_time: input.breakEndTime,
+    end_time: input.endTime,
+  })
+  if (error) throw error
+}
+
+export async function deleteShiftTemplate(templateId: string) {
+  const { error } = await client().from('shift_templates').delete().eq('id', templateId)
+  if (error) throw error
+}
+
 export async function loadStoreDetails(storeId: string) {
   const { data, error } = await client().from('stores').select('id,name,city,state').eq('id', storeId).single()
   if (error) throw error

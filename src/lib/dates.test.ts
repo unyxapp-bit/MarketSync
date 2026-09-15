@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, mondayOf, weekDates, weekRangeLabel, weekdayShort } from './dates'
+import { addDays, addDaysToTimestamp, mondayOf, weekDates, weekRangeLabel, weekdayShort } from './dates'
 
 describe('addDays', () => {
   it('adds days within the same month', () => {
@@ -18,6 +18,18 @@ describe('addDays', () => {
   })
   it('is reversible', () => {
     expect(addDays(addDays('2026-09-14', 10), -10)).toBe('2026-09-14')
+  })
+})
+
+describe('addDaysToTimestamp', () => {
+  it('shifts a UTC timestamp forward, preserving the time of day', () => {
+    expect(addDaysToTimestamp('2026-09-14T10:40:00.000Z', 7)).toBe('2026-09-21T10:40:00.000Z')
+  })
+  it('preserves the time of day when the offset is not UTC', () => {
+    expect(addDaysToTimestamp('2026-09-14T07:40:00-03:00', 7)).toBe('2026-09-21T10:40:00.000Z')
+  })
+  it('crosses a month boundary', () => {
+    expect(addDaysToTimestamp('2026-09-28T12:00:00.000Z', 7)).toBe('2026-10-05T12:00:00.000Z')
   })
 })
 

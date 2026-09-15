@@ -1030,6 +1030,74 @@ footer span:last-child {
 .editor-off input {
   accent-color: #167a62;
 }
+.shift-templates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 16px;
+}
+.shift-template-chip {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid #dce3e8;
+  border-radius: 7px;
+  overflow: hidden;
+}
+.shift-template-chip button:first-child {
+  border: 0;
+  background: #f4f7f6;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #253247;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  cursor: pointer;
+}
+.shift-template-chip button:first-child small {
+  font-size: 9px;
+  font-weight: 600;
+  color: #7b8798;
+}
+.shift-template-remove {
+  border: 0;
+  border-left: 1px solid #dce3e8;
+  background: #fff;
+  color: #9aa6b5;
+  padding: 0 6px;
+  cursor: pointer;
+}
+.shift-template-new {
+  display: inline-flex;
+  gap: 5px;
+  margin-left: 4px;
+}
+.shift-template-new input {
+  height: 30px;
+  width: 150px;
+  border: 1px dashed #c4cdd6;
+  border-radius: 7px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+.shift-template-new button {
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid #dce3e8;
+  border-radius: 7px;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  color: #167a62;
+  cursor: pointer;
+}
+.shift-template-new button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 .editor-times {
   display: grid;
   grid-template-columns: 1fr 1fr;

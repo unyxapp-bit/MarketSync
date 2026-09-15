@@ -20,6 +20,14 @@ export const addDays = (iso: string, amount: number) => {
   return date.toISOString().slice(0, 10)
 }
 
+// Same idea but for a full timestamp (a shift segment's starts_at/ends_at), which already carries
+// its own time-of-day and offset — addDays would mangle it by appending a second time suffix.
+export const addDaysToTimestamp = (iso: string, amount: number) => {
+  const date = new Date(iso)
+  date.setUTCDate(date.getUTCDate() + amount)
+  return date.toISOString()
+}
+
 export const todayIso = () => new Date().toISOString().slice(0, 10)
 
 export const mondayOf = (iso: string) => {

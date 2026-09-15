@@ -21,9 +21,12 @@ import {
   priorWorkStreak,
   restMinutes,
 } from "../../lib/compliance";
-import { addDays, mondayOf, todayIso, weekDates, weekRangeLabel, weekdayShort } from "../../lib/dates";
+import { addDays, addDaysToTimestamp, mondayOf, todayIso, weekDates, weekRangeLabel, weekdayShort } from "../../lib/dates";
 import { downloadCsv, toCsv } from "../../lib/csv";
 import {
+  addShiftTemplate,
+  createWeek,
+  deleteShiftTemplate,
   getStoreEmployees,
   getStoreSectors,
   importReceivedWeek,
@@ -31,11 +34,13 @@ import {
   loadComplianceContext,
   loadHolidays,
   loadRuleParametersForWeek,
+  loadShiftTemplates,
   saveCanonicalEntry,
   validateSchedule,
   type ComplianceEntryRow,
   type HolidayRow,
   type SectorRow,
+  type ShiftTemplateRow,
 } from "../../lib/marketSyncApi";
 import { useStore } from "../../shared/StoreContext";
 
@@ -135,6 +140,11 @@ export function ScheduleWorkspace() {
   const [weekId, setWeekId] = useState<string | null>(null);
   const [weekRevision, setWeekRevision] = useState<number | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [copyState, setCopyState] = useState<"idle" | "copying">("idle");
+  const [copyMessage, setCopyMessage] = useState("");
+  const [shiftTemplates, setShiftTemplates] = useState<ShiftTemplateRow[]>([]);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState("");
   const [ruleParameters, setRuleParameters] = useState<Record<string, Record<string, number>>>({});
   const [sectorList, setSectorList] = useState<SectorRow[]>([]);
   const [holidays, setHolidays] = useState<HolidayRow[]>([]);
@@ -153,6 +163,73 @@ export function ScheduleWorkspace() {
     setValidationState("idle");
     setValidationIssues([]);
     setValidationMessage("");
+  };
+  // Fills only the currently empty slots in this week from last week's entries (work/off day
+  // types), so it's always safe to run — it never overwrites anything already edited here.
+  // Vacation/leave/absence entries are one-time events and are deliberately not copied forward.
+  const copyPreviousWeek = async () => {
+    if (!store) return;
+    setCopyState("copying");
+    setCopyMessage("");
+    try {
+      const previousWeekStart = addDays(weekStart, -7);
+      const previous = await loadCanonicalWeek(store.id, previousWeekStart);
+      const sourceEntries = (previous?.entries ?? []).filter((entry) =>
+        ["work", "off"].includes(entry.day_type),
+      );
+      if (sourceEntries.length === 0) {
+        setCopyMessage("A semana anterior não tem turnos salvos para copiar.");
+        setCopyState("idle");
+        return;
+      }
+      let scheduleId = weekId;
+      let revision = weekRevision;
+      if (!scheduleId) {
+        await createWeek(store.id, weekStart);
+      }
+      const current = await loadCanonicalWeek(store.id, weekStart);
+      scheduleId = current?.schedule.id ?? scheduleId;
+      revision = current?.schedule.revision ?? revision;
+      if (!scheduleId || revision === null) throw new Error("Não foi possível preparar a semana atual.");
+      const alreadyFilled = new Set((current?.entries ?? []).map((entry) => `${entry.employee_id}|${entry.work_date}`));
+
+      let copied = 0;
+      let skipped = 0;
+      for (const entry of sourceEntries) {
+        const targetDate = addDays(entry.work_date, 7);
+        const key = `${entry.employee_id}|${targetDate}`;
+        if (alreadyFilled.has(key)) continue;
+        const segments = [...(entry.shift_segments ?? [])]
+          .sort((a, b) => a.sequence - b.sequence)
+          .map((segment) => ({
+            startsAt: addDaysToTimestamp(segment.starts_at, 7),
+            endsAt: addDaysToTimestamp(segment.ends_at, 7),
+          }));
+        try {
+          revision = await saveCanonicalEntry({
+            scheduleId,
+            employeeId: entry.employee_id,
+            workDate: targetDate,
+            dayType: entry.day_type as "work" | "off",
+            segments,
+            expectedRevision: revision,
+          });
+          copied += 1;
+        } catch {
+          skipped += 1;
+        }
+      }
+      setCopyMessage(
+        copied === 0
+          ? "Nada para copiar: todos os dias desta semana já estão preenchidos."
+          : `${copied} turno(s) copiado(s) da semana anterior${skipped ? `, ${skipped} não copiado(s)` : ""}.`,
+      );
+      setRefreshKey((value) => value + 1);
+    } catch {
+      setCopyMessage("Não foi possível copiar a semana anterior.");
+    } finally {
+      setCopyState("idle");
+    }
   };
   useEffect(() => {
     if (!store) return;
@@ -189,6 +266,13 @@ export function ScheduleWorkspace() {
       .then(setHolidays)
       .catch(() => setHolidays([]));
   }, [store]);
+  const refreshShiftTemplates = () => {
+    if (!store) return;
+    loadShiftTemplates(store.id)
+      .then(setShiftTemplates)
+      .catch(() => setShiftTemplates([]));
+  };
+  useEffect(refreshShiftTemplates, [store]);
   useEffect(() => {
     if (!store || employeeRoster.length === 0) return;
     setImportState((current) => (current === "idle" ? "loading" : current));
@@ -395,6 +479,46 @@ export function ScheduleWorkspace() {
       holidayAuthorized: holidayAuthorizedByEmployeeDay.get(employeeId)?.has(currentIso) ?? false,
     });
   };
+  const applyTemplate = (template: ShiftTemplateRow) => {
+    if (!editDraft) return;
+    setEditDraft({
+      ...editDraft,
+      isOff: false,
+      start: template.start_time.slice(0, 5),
+      breakStart: template.break_start_time.slice(0, 5),
+      breakEnd: template.break_end_time.slice(0, 5),
+      end: template.end_time.slice(0, 5),
+    });
+  };
+  const saveCurrentAsTemplate = async () => {
+    if (!store || !editDraft || !newTemplateName.trim()) return;
+    setSavingTemplate(true);
+    try {
+      await addShiftTemplate({
+        storeId: store.id,
+        name: newTemplateName,
+        startTime: editDraft.start,
+        breakStartTime: editDraft.breakStart,
+        breakEndTime: editDraft.breakEnd,
+        endTime: editDraft.end,
+      });
+      setNewTemplateName("");
+      refreshShiftTemplates();
+    } catch {
+      // A duplicate name is the only realistic failure here (unique per store); the input stays
+      // filled in so the manager can just try a different name.
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+  const removeTemplate = async (templateId: string) => {
+    try {
+      await deleteShiftTemplate(templateId);
+      refreshShiftTemplates();
+    } catch {
+      // Best-effort: leave the chip in place if the delete failed (e.g. not a manager).
+    }
+  };
   const saveEdit = async () => {
     if (!editDraft || !weekId || weekRevision === null) return;
     if (
@@ -552,8 +676,15 @@ export function ScheduleWorkspace() {
               {validationMessage}
             </p>
           )}
+          {copyMessage && <p className="validation-message idle">{copyMessage}</p>}
         </div>
         <div className="hero-actions">
+          {store && (
+            <button className="outline" disabled={copyState === "copying"} onClick={copyPreviousWeek}>
+              <FileDown size={16} />
+              {copyState === "copying" ? "Copiando..." : "Copiar semana anterior"}
+            </button>
+          )}
           {store && weekStart === PILOT_IMPORT_WEEK_START && (
             <button
               className="outline"
@@ -1026,6 +1157,42 @@ export function ScheduleWorkspace() {
                 />{" "}
                 Turno autorizado no feriado ({holidayByIso.get(dates[editDraft.day].iso)})
               </label>
+            )}
+            {!editDraft.isOff && (
+              <div className="shift-templates">
+                {shiftTemplates.map((template) => (
+                  <span className="shift-template-chip" key={template.id}>
+                    <button type="button" onClick={() => applyTemplate(template)}>
+                      {template.name}
+                      <small>
+                        {template.start_time.slice(0, 5)}–{template.end_time.slice(0, 5)}
+                      </small>
+                    </button>
+                    <button
+                      type="button"
+                      className="shift-template-remove"
+                      onClick={() => removeTemplate(template.id)}
+                      aria-label={`Remover modelo ${template.name}`}
+                    >
+                      <X size={11} />
+                    </button>
+                  </span>
+                ))}
+                <span className="shift-template-new">
+                  <input
+                    placeholder="Salvar horário atual como…"
+                    value={newTemplateName}
+                    onChange={(event) => setNewTemplateName(event.target.value)}
+                  />
+                  <button
+                    type="button"
+                    disabled={savingTemplate || !newTemplateName.trim()}
+                    onClick={saveCurrentAsTemplate}
+                  >
+                    Salvar
+                  </button>
+                </span>
+              </div>
             )}
             {!editDraft.isOff && (
               <div className="editor-times">
