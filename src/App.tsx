@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { History } from "lucide-react";
 import { AuthScreen } from "./components/AuthScreen";
 import { OnboardingScreen } from "./components/OnboardingScreen";
 import { supabase } from "./lib/supabase";
 import { getMyStores } from "./lib/marketSyncApi";
 import { AppShell } from "./shared/AppShell";
-import { PlaceholderPage } from "./shared/PlaceholderPage";
 import { StoreProvider } from "./shared/StoreContext";
 import { DashboardPage } from "./features/dashboard/DashboardPage";
 import { ScheduleWorkspace } from "./features/schedules/ScheduleWorkspace";
@@ -15,6 +13,7 @@ import { EmployeesPage } from "./features/employees/EmployeesPage";
 import { ConflictsPage } from "./features/conflicts/ConflictsPage";
 import { PublicationsPage } from "./features/publications/PublicationsPage";
 import { RulesPage } from "./features/rules/RulesPage";
+import { AuditPage } from "./features/audit/AuditPage";
 import "./App.css";
 
 function App() {
@@ -75,17 +74,7 @@ function App() {
             <Route path="/app/employees" element={<EmployeesPage />} />
             <Route path="/app/rules" element={<RulesPage />} />
             <Route path="/app/publications" element={<PublicationsPage />} />
-            <Route
-              path="/app/audit"
-              element={
-                <PlaceholderPage
-                  eyebrow="ADMINISTRADOR, RH E AUDITOR"
-                  title="Histórico e auditoria"
-                  description="Linha do tempo de versões, comparação de mudanças e trilha completa de quem alterou o quê e por quê."
-                  icon={History}
-                />
-              }
-            />
+            <Route path="/app/audit" element={<AuditPage />} />
             <Route path="*" element={<Navigate to="/app" replace />} />
           </Route>
         </Routes>

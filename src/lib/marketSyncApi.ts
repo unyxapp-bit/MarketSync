@@ -439,3 +439,94 @@ export async function loadRuleParametersForWeek(storeId: string, weekStart: stri
     (rules ?? []).map((rule) => [rule.code, rule.parameters as Record<string, number>]),
   ) as Record<string, Record<string, number>>
 }
+
+export type SnapshotEntry = {
+  employeeId: string
+  workDate: string
+  dayType: string
+  note?: string | null
+  segments: Array<{ sequence: number; startsAt: string; endsAt: string }>
+}
+export type ScheduleVersionRow = {
+  id: string
+  number: number
+  checksum: string
+  created_at: string
+  snapshot: { entries: SnapshotEntry[] }
+  profiles: { full_name: string } | { full_name: string }[] | null
+  publications: Array<{ published_at: string }> | null
+}
+export type ApprovalRow = {
+  id: string
+  decision: string
+  reason: string | null
+  created_at: string
+  profiles: { full_name: string } | { full_name: string }[] | null
+}
+export type AuditEventRow = {
+  id: string
+  action: string
+  entity_type: string
+  entity_id: string | null
+  payload: Record<string, unknown>
+  occurred_at: string
+  profiles: { full_name: string } | { full_name: string }[] | null
+}
+
+// Combines the three places an auditable trail lives today: published schedule_versions
+// (immutable snapshots), approvals (which reference a schedule directly since they can happen
+// before a version/snapshot exists), and audit_logs for everything else. rule_set_revised events
+// are organization-scoped (store_id is null), so the OR clause pulls those in too instead of
+// silently dropping the only record of a compliance rule change.
+export async function loadAuditTrail(storeId: string, weekStart: string) {
+  const api = client()
+  const { data: store, error: storeError } = await api
+    .from('stores')
+    .select('organization_id')
+    .eq('id', storeId)
+    .single()
+  if (storeError) throw storeError
+
+  const { data: schedule, error: scheduleError } = await api
+    .from('schedules')
+    .select('id,status,revision')
+    .eq('store_id', storeId)
+    .eq('week_start', weekStart)
+    .maybeSingle()
+  if (scheduleError) throw scheduleError
+
+  let versions: ScheduleVersionRow[] = []
+  let approvals: ApprovalRow[] = []
+  if (schedule) {
+    const { data: versionData, error: versionError } = await api
+      .from('schedule_versions')
+      .select('id,number,checksum,created_at,snapshot,profiles(full_name),publications(published_at)')
+      .eq('schedule_id', schedule.id)
+      .order('number', { ascending: false })
+    if (versionError) throw versionError
+    versions = (versionData ?? []) as unknown as ScheduleVersionRow[]
+
+    const { data: approvalData, error: approvalError } = await api
+      .from('approvals')
+      .select('id,decision,reason,created_at,profiles(full_name)')
+      .eq('schedule_id', schedule.id)
+      .order('created_at', { ascending: false })
+    if (approvalError) throw approvalError
+    approvals = (approvalData ?? []) as unknown as ApprovalRow[]
+  }
+
+  const { data: eventData, error: eventError } = await api
+    .from('audit_logs')
+    .select('id,action,entity_type,entity_id,payload,occurred_at,profiles(full_name)')
+    .or(`store_id.eq.${storeId},and(store_id.is.null,organization_id.eq.${store.organization_id})`)
+    .order('occurred_at', { ascending: false })
+    .limit(50)
+  if (eventError) throw eventError
+
+  return {
+    schedule,
+    versions,
+    approvals,
+    events: (eventData ?? []) as unknown as AuditEventRow[],
+  }
+}
