@@ -339,7 +339,7 @@ export async function getStoreSectors(storeId: string) {
   return data ?? []
 }
 
-export async function inviteStoreMember(input: { storeId: string; email: string; role: 'manager' | 'supervisor' | 'employee'; sectorIds: string[]; canEditSector: boolean }) {
+export async function inviteStoreMember(input: { storeId: string; email: string; role: 'manager' | 'supervisor' | 'employee' | 'rh' | 'auditor'; sectorIds: string[]; canEditSector: boolean }) {
   const { data, error } = await client().functions.invoke('invite-user', { body: input })
   if (error) throw error
   return data
