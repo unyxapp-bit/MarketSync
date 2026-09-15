@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { CheckCircle2, FileUp, X, XCircle } from "lucide-react";
-import { parseCsv } from "../../lib/csv";
+import { CheckCircle2, Download, FileUp, X, XCircle } from "lucide-react";
+import { downloadCsv, parseCsv, toCsv } from "../../lib/csv";
 import { saveEmployee } from "../../lib/marketSyncApi";
 
 type Sector = { id: string; name: string };
@@ -80,6 +80,15 @@ export function EmployeeCsvImport({
       if (match) nextMapping[field.key] = match;
     }
     setMapping(nextMapping);
+  };
+
+  const downloadTemplate = () => {
+    const exampleSector = sectors[0]?.name ?? "Caixa";
+    const csv = toCsv(
+      ["Nome completo", "Cargo", "Setor", "Matrícula", "Carga semanal (h)", "Sexo"],
+      [["Maria da Silva", "Operador(a) de caixa", exampleSector, "0001", "44", "F"]],
+    );
+    downloadCsv("modelo_colaboradores.csv", csv);
   };
 
   const columnIndex = (header: string) => headers.indexOf(header);
@@ -168,6 +177,11 @@ export function EmployeeCsvImport({
             <X size={18} />
           </button>
         </div>
+
+        <button className="outline" type="button" onClick={downloadTemplate}>
+          <Download size={16} />
+          Baixar modelo CSV em branco
+        </button>
 
         <label className="csv-file-drop">
           <FileUp size={16} />
