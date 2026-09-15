@@ -59,6 +59,9 @@ import { useStore } from "../../shared/StoreContext";
 // schedule). Every other week is navigated to and edited purely through Supabase.
 const PILOT_IMPORT_WEEK_START = "2026-09-14";
 const UNASSIGNED_SECTOR = "Sem setor";
+// Store operating window used for the hourly coverage map — covers every shift start/end seen in
+// the pilot data (07:40–21:40) with a little margin on each side.
+const HOUR_RANGE = Array.from({ length: 17 }, (_, index) => index + 6);
 
 function buildHistoryMap(rows: ComplianceEntryRow[]) {
   const map = new Map<string, Map<string, Shift | null>>();
@@ -478,6 +481,26 @@ export function ScheduleWorkspace() {
     }
     return { totalMinutes, totalShifts, sundayWorkers, staffedCount };
   }, [scheduleEmployees]);
+  // Headcount actually covering each hour of the selected day — excludes break time, since
+  // someone on intervalo isn't covering the floor even though their shift technically spans it.
+  const hourlyCoverage = useMemo(() => {
+    const toMinutes = (hhmm: string) => {
+      const [h, m] = hhmm.split(":").map(Number);
+      return h * 60 + m;
+    };
+    return HOUR_RANGE.map((hour) => {
+      const hourStart = hour * 60;
+      const hourEnd = hourStart + 60;
+      const count = reviews.reduce((total, review) => {
+        const shift = review.shift;
+        if (!shift) return total;
+        const period1 = toMinutes(shift.start) < hourEnd && toMinutes(shift.breakStart) > hourStart;
+        const period2 = toMinutes(shift.breakEnd) < hourEnd && toMinutes(shift.end) > hourStart;
+        return period1 || period2 ? total + 1 : total;
+      }, 0);
+      return { hour, count };
+    });
+  }, [reviews]);
   const sundayDecision = (review: Review) => {
     if (!review.shift) return { text: "Folga programada", kind: "neutral" };
     if (!review.hasPreSundayRest)
@@ -944,6 +967,21 @@ export function ScheduleWorkspace() {
             <strong>{weekSummary.sundayWorkers}</strong>
             <span>domingos trabalhados</span>
           </div>
+        </div>
+      </section>
+      <section className="hour-coverage-card">
+        <h2>Mapa de cobertura por hora · {dates[selectedDay].label}</h2>
+        <div className="hour-coverage-chart">
+          {hourlyCoverage.map(({ hour, count }) => (
+            <div className="hour-coverage-bar" key={hour}>
+              <span className="hour-coverage-count">{count || ""}</span>
+              <div
+                className={`hour-coverage-fill ${count === 0 ? "empty" : ""}`}
+                style={{ height: `${Math.min(100, count * 22)}px` }}
+              />
+              <small>{String(hour).padStart(2, "0")}h</small>
+            </div>
+          ))}
         </div>
       </section>
       {!weekId && store && (

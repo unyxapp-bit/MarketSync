@@ -921,6 +921,53 @@ main {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+.hour-coverage-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px 10px;
+  margin-bottom: 27px;
+}
+.hour-coverage-card h2 {
+  font-size: 13px;
+  margin: 0 0 16px;
+  color: #536174;
+}
+.hour-coverage-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.hour-coverage-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 26px;
+  flex: 1;
+}
+.hour-coverage-count {
+  font-size: 10px;
+  font-weight: 700;
+  color: #167a62;
+  height: 14px;
+}
+.hour-coverage-fill {
+  width: 100%;
+  min-height: 3px;
+  background: #56b499;
+  border-radius: 4px 4px 0 0;
+}
+.hour-coverage-fill.empty {
+  background: #edf0f2;
+}
+.hour-coverage-bar small {
+  margin-top: 6px;
+  font-size: 9px;
+  color: #9aa6b5;
+}
 .sector {
   margin-top: 27px;
 }
