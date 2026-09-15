@@ -12,9 +12,11 @@ import {
   Pencil,
   Search,
   ShieldCheck,
+  Upload,
   X,
 } from "lucide-react";
 import type { Employee, Shift } from "../../data/realSchedule";
+import { normalizeName, parseScheduleWorkbook, type ParsedShiftRow } from "../../lib/scheduleXlsxImport";
 import {
   dailyMinutes,
   formatMinutes,
@@ -185,6 +187,17 @@ export function ScheduleWorkspace() {
   const [newTemplateName, setNewTemplateName] = useState("");
   const [ruleParameters, setRuleParameters] = useState<Record<string, Record<string, number>>>({});
   const [sectorList, setSectorList] = useState<SectorRow[]>([]);
+  const [xlsxImportState, setXlsxImportState] = useState<"idle" | "parsing" | "preview" | "importing" | "done">(
+    "idle",
+  );
+  const [xlsxImportError, setXlsxImportError] = useState("");
+  const [xlsxMatchedRows, setXlsxMatchedRows] = useState<
+    Array<{ employeeId: string; employeeName: string } & ParsedShiftRow>
+  >([]);
+  const [xlsxUnmatchedNames, setXlsxUnmatchedNames] = useState<string[]>([]);
+  const [xlsxSkippedCount, setXlsxSkippedCount] = useState(0);
+  const [xlsxResultMessage, setXlsxResultMessage] = useState("");
+  const xlsxFileInputRef = useRef<HTMLInputElement | null>(null);
   const [holidays, setHolidays] = useState<HolidayRow[]>([]);
   const [holidayAuthorizedByEmployeeDay, setHolidayAuthorizedByEmployeeDay] = useState<
     Map<string, Set<string>>
@@ -281,6 +294,111 @@ export function ScheduleWorkspace() {
     } finally {
       setCopyState("idle");
     }
+  };
+  const pickXlsxFile = () => xlsxFileInputRef.current?.click();
+  const handleXlsxFileSelected = async (file: File) => {
+    setXlsxImportState("parsing");
+    setXlsxImportError("");
+    setXlsxResultMessage("");
+    try {
+      const { rows } = await parseScheduleWorkbook(file);
+      const byNormalizedName = new Map(employeeRoster.map((person) => [normalizeName(person.name), person.id]));
+      const matched: Array<{ employeeId: string; employeeName: string } & ParsedShiftRow> = [];
+      const unmatchedNames = new Set<string>();
+      let skipped = 0;
+      for (const row of rows) {
+        if (!row.hasData) {
+          skipped += 1;
+          continue;
+        }
+        const employeeId = byNormalizedName.get(normalizeName(row.employeeName));
+        if (!employeeId) {
+          unmatchedNames.add(row.employeeName);
+          continue;
+        }
+        matched.push({ ...row, employeeId, employeeName: row.employeeName });
+      }
+      setXlsxMatchedRows(matched);
+      setXlsxUnmatchedNames([...unmatchedNames].sort());
+      setXlsxSkippedCount(skipped);
+      setXlsxImportState("preview");
+    } catch (error) {
+      setXlsxImportError(
+        error instanceof Error ? error.message : "Não foi possível ler essa planilha.",
+      );
+      setXlsxImportState("idle");
+    }
+  };
+  const confirmXlsxImport = async () => {
+    if (!store || xlsxMatchedRows.length === 0) return;
+    setXlsxImportState("importing");
+    try {
+      const byWeek = new Map<string, typeof xlsxMatchedRows>();
+      for (const row of xlsxMatchedRows) {
+        const monday = mondayOf(row.workDate);
+        const list = byWeek.get(monday) ?? [];
+        list.push(row);
+        byWeek.set(monday, list);
+      }
+      let imported = 0;
+      let failed = 0;
+      let touchedCurrentWeek = false;
+      for (const [weekMonday, weekRows] of byWeek) {
+        let current = await loadCanonicalWeek(store.id, weekMonday);
+        if (!current) {
+          await createWeek(store.id, weekMonday);
+          current = await loadCanonicalWeek(store.id, weekMonday);
+        }
+        if (!current) {
+          failed += weekRows.length;
+          continue;
+        }
+        let revision = current.schedule.revision;
+        const scheduleId = current.schedule.id;
+        for (const row of weekRows) {
+          const iso = (time: string) => `${row.workDate}T${time}:00-03:00`;
+          const segments = row.isOff
+            ? []
+            : [
+                { startsAt: iso(row.start!), endsAt: iso(row.breakStart!) },
+                { startsAt: iso(row.breakEnd!), endsAt: iso(row.end!) },
+              ];
+          try {
+            revision = await saveCanonicalEntry({
+              scheduleId,
+              employeeId: row.employeeId,
+              workDate: row.workDate,
+              dayType: row.isOff ? "off" : "work",
+              segments,
+              expectedRevision: revision,
+            });
+            imported += 1;
+          } catch {
+            failed += 1;
+          }
+        }
+        if (weekMonday === weekStart) touchedCurrentWeek = true;
+      }
+      setXlsxResultMessage(
+        `${imported} turno(s) importado(s)${failed ? `, ${failed} não importado(s)` : ""}${
+          xlsxSkippedCount ? `, ${xlsxSkippedCount} dia(s) sem dado na planilha (não mexidos)` : ""
+        }${xlsxUnmatchedNames.length ? `, ${xlsxUnmatchedNames.length} colaborador(es) não encontrado(s)` : ""}.`,
+      );
+      setXlsxImportState("done");
+      if (touchedCurrentWeek) setRefreshKey((value) => value + 1);
+    } catch {
+      setXlsxResultMessage("Não foi possível concluir a importação.");
+      setXlsxImportState("done");
+    }
+  };
+  const closeXlsxImport = () => {
+    setXlsxImportState("idle");
+    setXlsxImportError("");
+    setXlsxMatchedRows([]);
+    setXlsxUnmatchedNames([]);
+    setXlsxSkippedCount(0);
+    setXlsxResultMessage("");
+    if (xlsxFileInputRef.current) xlsxFileInputRef.current.value = "";
   };
   useEffect(() => {
     if (!store) return;
@@ -905,6 +1023,7 @@ export function ScheduleWorkspace() {
             </p>
           )}
           {copyMessage && <p className="validation-message idle">{copyMessage}</p>}
+          {xlsxImportError && <p className="validation-message failed">{xlsxImportError}</p>}
         </div>
         <div className="hero-actions">
           {store && (
@@ -912,6 +1031,24 @@ export function ScheduleWorkspace() {
               <FileDown size={16} />
               {copyState === "copying" ? "Copiando..." : "Copiar semana anterior"}
             </button>
+          )}
+          {store && (
+            <>
+              <input
+                ref={xlsxFileInputRef}
+                type="file"
+                accept=".xlsx"
+                style={{ display: "none" }}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) handleXlsxFileSelected(file);
+                }}
+              />
+              <button className="outline" disabled={xlsxImportState === "parsing"} onClick={pickXlsxFile}>
+                <Upload size={16} />
+                {xlsxImportState === "parsing" ? "Lendo planilha..." : "Importar planilha (.xlsx)"}
+              </button>
+            </>
           )}
           <button
             className="outline"
@@ -1669,6 +1806,64 @@ export function ScheduleWorkspace() {
           </section>
         </div>
       )}
+      {(xlsxImportState === "preview" || xlsxImportState === "importing" || xlsxImportState === "done") && (
+        <div className="editor-backdrop" role="presentation">
+          <section className="shift-editor" role="dialog" aria-modal="true" aria-labelledby="xlsx-import-title">
+            <div className="editor-head">
+              <div>
+                <p className="eyebrow">IMPORTAR PLANILHA</p>
+                <h2 id="xlsx-import-title">
+                  {xlsxImportState === "done" ? "Importação concluída" : "Conferir antes de importar"}
+                </h2>
+              </div>
+              <button className="editor-close" type="button" onClick={closeXlsxImport} aria-label="Fechar">
+                <X size={18} />
+              </button>
+            </div>
+            {xlsxImportState !== "done" ? (
+              <>
+                <p>
+                  {xlsxMatchedRows.length} turno(s)/folga(s) encontrados e prontos para importar, casados por nome
+                  com os colaboradores já cadastrados nesta loja.
+                </p>
+                {xlsxSkippedCount > 0 && (
+                  <p className="editor-message saving">
+                    {xlsxSkippedCount} dia(s) ainda sem horário preenchido na planilha — não serão alterados aqui.
+                  </p>
+                )}
+                {xlsxUnmatchedNames.length > 0 && (
+                  <p className="editor-message error">
+                    {xlsxUnmatchedNames.length} nome(s) da planilha não batem com nenhum colaborador desta loja:{" "}
+                    {xlsxUnmatchedNames.join(", ")}. Confira a grafia ou cadastre-os antes de importar novamente.
+                  </p>
+                )}
+                <div className="editor-actions">
+                  <button className="outline" type="button" onClick={closeXlsxImport}>
+                    Cancelar
+                  </button>
+                  <button
+                    className="solid"
+                    type="button"
+                    disabled={xlsxImportState === "importing" || xlsxMatchedRows.length === 0}
+                    onClick={confirmXlsxImport}
+                  >
+                    {xlsxImportState === "importing" ? "Importando..." : `Importar ${xlsxMatchedRows.length} turno(s)`}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="editor-message saving">{xlsxResultMessage}</p>
+                <div className="editor-actions">
+                  <button className="solid" type="button" onClick={closeXlsxImport}>
+                    Fechar
+                  </button>
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+      )}
       <footer>
         <span>
           <i className="dot work" />
@@ -1678,7 +1873,6 @@ export function ScheduleWorkspace() {
           <i className="dot rest" />
           Folga
         </span>
-        <span>Fonte: escala física enviada · transcrição inicial</span>
         <span className="shortcuts-hint">Atalhos: ← → dia · / buscar · V validar · Esc fechar</span>
       </footer>
     </>
