@@ -2080,13 +2080,24 @@ footer span:last-child {
   gap: 10px;
   margin-bottom: 10px;
 }
-.rule-head strong {
+.rule-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rule-title-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #2b394e;
+}
+.rule-title-code {
   font:
-    700 12px ui-monospace,
+    600 10px ui-monospace,
     SFMono-Regular,
     Menlo,
     monospace;
-  color: #2b394e;
+  color: #9aa6b5;
+  letter-spacing: 0.2px;
 }
 .rule-blocking {
   border-radius: 999px;

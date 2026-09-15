@@ -24,6 +24,39 @@ const severityTone: Record<RuleRow["severity"], string> = {
   info: "neutral",
 };
 
+// The API stores rule codes and parameter keys as technical identifiers (they're also what the
+// validate-schedule Edge Function matches on), so this maps them to the plain-language labels RH
+// actually reads on this screen. Any code/key without an entry here just falls back to itself.
+const ruleLabel: Record<string, string> = {
+  INTERJOURNEY_MIN: "Interjornada mínima",
+  SEGMENT_OVERLAP: "Sobreposição de turnos",
+  WEEKLY_REST_WINDOW: "Folga obrigatória",
+  SUNDAY_REST_AROUND: "Folga em torno do domingo",
+  SUNDAY_REST_ROTATION: "Rodízio de domingos trabalhados",
+  INTRADAY_BREAK: "Intervalo intrajornada",
+  DAILY_MINUTES: "Carga diária máxima",
+  WEEKLY_MINUTES: "Carga semanal máxima",
+  EMPLOYEE_UNAVAILABLE: "Restrição de disponibilidade",
+  SECTOR_COVERAGE: "Cobertura mínima por setor",
+  HOLIDAY_AUTHORIZATION: "Autorização em feriado",
+};
+
+const paramLabel: Record<string, string> = {
+  minimum_minutes: "Mínimo (min)",
+  maximum_consecutive_days: "Máx. dias seguidos",
+  pre_days: "Folga antes (dias)",
+  post_days: "Folga depois (dias)",
+  window_weeks: "Janela (semanas)",
+  maximum_worked_sundays: "Máx. domingos trabalhados",
+  threshold_over_hours: "Acima de (h) → intervalo maior",
+  threshold_partial_hours: "Acima de (h) → intervalo parcial",
+  minimum_break_over_minutes: "Intervalo maior (min)",
+  minimum_break_partial_minutes: "Intervalo parcial (min)",
+  maximum_minutes: "Máximo (min)",
+  tolerance_minutes: "Tolerância (min)",
+  default_weekly_minutes: "Padrão sem contrato (min)",
+};
+
 type EditableRule = RuleRow & { paramsDraft: Record<string, string> };
 
 const draftFromRule = (rule: RuleRow): EditableRule => ({
@@ -170,7 +203,10 @@ export function RulesPage() {
               <article key={rule.id} className="rule-row">
                 <div className="rule-head">
                   <span className={`status ${severityTone[rule.severity]}`}>{severityLabel[rule.severity]}</span>
-                  <strong>{rule.code}</strong>
+                  <div className="rule-title">
+                    <span className="rule-title-name">{ruleLabel[rule.code] ?? rule.code}</span>
+                    <code className="rule-title-code">{rule.code}</code>
+                  </div>
                   {rule.blocking && <span className="rule-blocking">BLOQUEIA</span>}
                   {rule.legal_basis && <span className="rule-basis">{rule.legal_basis}</span>}
                 </div>
@@ -180,7 +216,7 @@ export function RulesPage() {
                   )}
                   {Object.entries(rule.paramsDraft).map(([key, value]) => (
                     <label key={key} className="rule-param">
-                      {key}
+                      {paramLabel[key] ?? key}
                       <input
                         type="number"
                         value={value}
