@@ -203,6 +203,19 @@ export async function loadComplianceContext(storeId: string, weekStart: string) 
   return (data ?? []) as unknown as ComplianceEntryRow[]
 }
 
+// Same shape as loadComplianceContext but for an explicit date range, used by the monthly
+// overview grid instead of a fixed window around one week.
+export async function loadMonthSchedule(storeId: string, monthStart: string, monthEnd: string) {
+  const { data, error } = await client()
+    .from('schedule_entries')
+    .select('employee_id,work_date,day_type,schedules!inner(store_id),shift_segments(sequence,starts_at,ends_at)')
+    .eq('schedules.store_id', storeId)
+    .gte('work_date', monthStart)
+    .lte('work_date', monthEnd)
+  if (error) throw error
+  return (data ?? []) as unknown as ComplianceEntryRow[]
+}
+
 async function findLatestValidationRun(storeId: string, weekStart: string) {
   const api = client()
   const { data: schedule, error: scheduleError } = await api

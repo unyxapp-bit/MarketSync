@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, addDaysToTimestamp, mondayOf, weekDates, weekRangeLabel, weekdayShort } from './dates'
+import {
+  addDays,
+  addDaysToTimestamp,
+  addMonths,
+  daysInMonth,
+  mondayOf,
+  monthDates,
+  monthLabel,
+  startOfMonth,
+  weekDates,
+  weekRangeLabel,
+  weekdayShort,
+} from './dates'
 
 describe('addDays', () => {
   it('adds days within the same month', () => {
@@ -80,6 +92,57 @@ describe('weekdayShort', () => {
   it('matches the corresponding entry from weekDates', () => {
     expect(weekdayShort('2026-09-20')).toBe('Dom')
     expect(weekdayShort('2026-09-14')).toBe('Seg')
+  })
+})
+
+describe('startOfMonth', () => {
+  it('returns the 1st regardless of the input day', () => {
+    expect(startOfMonth('2026-09-17')).toBe('2026-09-01')
+    expect(startOfMonth('2026-09-01')).toBe('2026-09-01')
+  })
+})
+
+describe('daysInMonth', () => {
+  it('counts a 30-day month', () => {
+    expect(daysInMonth('2026-09-05')).toBe(30)
+  })
+  it('counts a 31-day month', () => {
+    expect(daysInMonth('2026-10-05')).toBe(31)
+  })
+  it('counts February in a non-leap year', () => {
+    expect(daysInMonth('2026-02-05')).toBe(28)
+  })
+  it('counts February in a leap year', () => {
+    expect(daysInMonth('2028-02-05')).toBe(29)
+  })
+})
+
+describe('addMonths', () => {
+  // Used for month-to-month navigation, so it always anchors to the 1st of the target month
+  // (like startOfMonth) rather than preserving the input day-of-month.
+  it('anchors to the 1st of the next month, regardless of the input day', () => {
+    expect(addMonths('2026-09-14', 1)).toBe('2026-10-01')
+  })
+  it('crosses a year boundary', () => {
+    expect(addMonths('2026-12-01', 1)).toBe('2027-01-01')
+  })
+  it('goes backwards', () => {
+    expect(addMonths('2026-09-01', -1)).toBe('2026-08-01')
+  })
+})
+
+describe('monthDates', () => {
+  it('returns one entry per day of the month, starting on the 1st', () => {
+    const days = monthDates('2026-09-17')
+    expect(days).toHaveLength(30)
+    expect(days[0].iso).toBe('2026-09-01')
+    expect(days[29].iso).toBe('2026-09-30')
+  })
+})
+
+describe('monthLabel', () => {
+  it('formats a capitalized month name and year', () => {
+    expect(monthLabel('2026-09-17')).toBe('Setembro de 2026')
   })
 })
 

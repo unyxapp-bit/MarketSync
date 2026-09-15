@@ -21,7 +21,18 @@ import {
   priorWorkStreak,
   restMinutes,
 } from "../../lib/compliance";
-import { addDays, addDaysToTimestamp, mondayOf, todayIso, weekDates, weekRangeLabel, weekdayShort } from "../../lib/dates";
+import {
+  addDays,
+  addDaysToTimestamp,
+  addMonths,
+  mondayOf,
+  startOfMonth,
+  todayIso,
+  weekDates,
+  weekRangeLabel,
+  weekdayShort,
+} from "../../lib/dates";
+import { MonthlyView } from "./MonthlyView";
 import { downloadCsv, toCsv } from "../../lib/csv";
 import {
   addShiftTemplate,
@@ -109,6 +120,8 @@ type ValidationIssue = {
 export function ScheduleWorkspace() {
   const store = useStore();
   const [weekStart, setWeekStart] = useState(() => mondayOf(todayIso()));
+  const [viewMode, setViewMode] = useState<"week" | "month">("week");
+  const [monthStart, setMonthStart] = useState(() => startOfMonth(todayIso()));
   const dates = useMemo(() => weekDates(weekStart), [weekStart]);
   const [selectedDay, setSelectedDay] = useState(0);
   const [search, setSearch] = useState("");
@@ -163,6 +176,13 @@ export function ScheduleWorkspace() {
     setValidationState("idle");
     setValidationIssues([]);
     setValidationMessage("");
+  };
+  const handleSelectMonthDay = (iso: string) => {
+    const targetWeekStart = mondayOf(iso);
+    goToWeek(targetWeekStart);
+    setViewMode("week");
+    const dayIndex = weekDates(targetWeekStart).findIndex((day) => day.iso === iso);
+    setSelectedDay(dayIndex >= 0 ? dayIndex : 0);
   };
   // Fills only the currently empty slots in this week from last week's entries (work/off day
   // types), so it's always safe to run — it never overwrites anything already edited here.
@@ -773,6 +793,37 @@ export function ScheduleWorkspace() {
           </Link>
         </div>
       </section>
+      <div className="view-toggle">
+        <button
+          type="button"
+          className={viewMode === "week" ? "active" : ""}
+          onClick={() => setViewMode("week")}
+        >
+          Semana
+        </button>
+        <button
+          type="button"
+          className={viewMode === "month" ? "active" : ""}
+          onClick={() => {
+            setMonthStart(startOfMonth(weekStart));
+            setViewMode("month");
+          }}
+        >
+          Mês
+        </button>
+      </div>
+      {viewMode === "month" && store && (
+        <MonthlyView
+          storeId={store.id}
+          monthStart={monthStart}
+          onChangeMonth={(delta) => setMonthStart(addMonths(monthStart, delta))}
+          employeeRoster={employeeRoster}
+          sectorList={sectorList}
+          onSelectDay={handleSelectMonthDay}
+        />
+      )}
+      {viewMode === "week" && (
+        <>
       <section className="week-strip">
         <button
           className="arrow"
@@ -1107,6 +1158,8 @@ export function ScheduleWorkspace() {
           </p>
         )}
       </section>
+        </>
+      )}
       {editDraft && (
         <div className="editor-backdrop" role="presentation">
           <section

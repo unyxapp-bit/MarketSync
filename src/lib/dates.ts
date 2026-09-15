@@ -54,6 +54,44 @@ export const weekDates = (weekStart: string): WeekDay[] =>
     }
   })
 
+export const startOfMonth = (iso: string) => `${iso.slice(0, 7)}-01`
+
+export const daysInMonth = (monthStartIso: string) => {
+  const date = new Date(`${startOfMonth(monthStartIso)}T12:00:00Z`)
+  date.setUTCMonth(date.getUTCMonth() + 1)
+  date.setUTCDate(0)
+  return date.getUTCDate()
+}
+
+export const addMonths = (iso: string, amount: number) => {
+  const date = new Date(`${startOfMonth(iso)}T12:00:00Z`)
+  date.setUTCMonth(date.getUTCMonth() + amount)
+  return date.toISOString().slice(0, 10)
+}
+
+export const monthDates = (monthStartIso: string): WeekDay[] => {
+  const start = startOfMonth(monthStartIso)
+  const count = daysInMonth(start)
+  return Array.from({ length: count }, (_, index) => {
+    const iso = addDays(start, index)
+    const date = new Date(`${iso}T12:00:00Z`)
+    const dayOfWeek = date.getUTCDay()
+    const dayNumber = date.getUTCDate()
+    return {
+      iso,
+      weekday: WEEKDAY_SHORT[dayOfWeek],
+      date: String(dayNumber).padStart(2, '0'),
+      label: `${WEEKDAY_LONG[dayOfWeek]}, ${dayNumber} de ${MONTHS[date.getUTCMonth()]} de ${date.getUTCFullYear()}`,
+    }
+  })
+}
+
+export const monthLabel = (monthStartIso: string) => {
+  const date = new Date(`${startOfMonth(monthStartIso)}T12:00:00Z`)
+  const name = MONTHS[date.getUTCMonth()]
+  return `${name[0].toUpperCase()}${name.slice(1)} de ${date.getUTCFullYear()}`
+}
+
 export const weekRangeLabel = (weekStart: string) => {
   const [first, , , , , , last] = weekDates(weekStart)
   const firstDate = new Date(`${first.iso}T12:00:00Z`)
