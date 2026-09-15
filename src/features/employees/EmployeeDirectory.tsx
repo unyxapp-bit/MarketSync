@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { Plus, Search, User, X } from "lucide-react";
+import { Plus, Search, Upload, User, X } from "lucide-react";
 import {
   addEmployeeConstraint,
   addEmploymentContract,
@@ -15,6 +15,7 @@ import {
   type EmployeeDirectoryRow,
 } from "../../lib/marketSyncApi";
 import { todayIso } from "../../lib/dates";
+import { EmployeeCsvImport } from "./EmployeeCsvImport";
 
 type Sector = { id: string; name: string };
 type StatusFilter = "all" | "active" | "leave" | "terminated";
@@ -70,6 +71,7 @@ export function EmployeeDirectory({ storeId }: { storeId: string }) {
   const [newConstraintStart, setNewConstraintStart] = useState("");
   const [newConstraintEnd, setNewConstraintEnd] = useState("");
   const [newConstraintNote, setNewConstraintNote] = useState("");
+  const [importOpen, setImportOpen] = useState(false);
 
   const refresh = () => {
     loadEmployeeDirectory(storeId).then(setEmployees).catch(() => undefined);
@@ -190,10 +192,16 @@ export function EmployeeDirectory({ storeId }: { storeId: string }) {
           <h2>Colaboradores</h2>
           <p>Dados básicos, contrato, carga semanal e restrições de disponibilidade.</p>
         </div>
-        <button className="solid directory-add" type="button" onClick={openCreate}>
-          <Plus size={15} />
-          Novo colaborador
-        </button>
+        <div className="directory-add-group">
+          <button className="outline" type="button" onClick={() => setImportOpen(true)}>
+            <Upload size={15} />
+            Importar CSV
+          </button>
+          <button className="solid directory-add" type="button" onClick={openCreate}>
+            <Plus size={15} />
+            Novo colaborador
+          </button>
+        </div>
       </div>
 
       <div className="directory-toolbar">
@@ -436,6 +444,15 @@ export function EmployeeDirectory({ storeId }: { storeId: string }) {
             )}
           </section>
         </div>
+      )}
+
+      {importOpen && (
+        <EmployeeCsvImport
+          storeId={storeId}
+          sectors={sectors}
+          onImported={refresh}
+          onClose={() => setImportOpen(false)}
+        />
       )}
     </section>
   );
