@@ -13,7 +13,7 @@ import {
   ShieldCheck,
   X,
 } from "lucide-react";
-import { employees as initialEmployees, type Employee, type Shift } from "../../data/realSchedule";
+import type { Employee, Shift } from "../../data/realSchedule";
 import {
   dailyMinutes,
   formatMinutes,
@@ -119,8 +119,7 @@ export function ScheduleWorkspace() {
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>(
     [],
   );
-  const [scheduleEmployees, setScheduleEmployees] =
-    useState<Employee[]>(initialEmployees);
+  const [scheduleEmployees, setScheduleEmployees] = useState<Employee[]>([]);
   const [employeeIds, setEmployeeIds] = useState<Record<string, string>>({});
   const [employeeRoster, setEmployeeRoster] = useState<
     Array<{ id: string; name: string; sector: Employee["sector"] }>
