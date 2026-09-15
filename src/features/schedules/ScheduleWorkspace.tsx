@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   CalendarDays,
@@ -139,6 +139,7 @@ export function ScheduleWorkspace() {
   const store = useStore();
   const [weekStart, setWeekStart] = useState(() => mondayOf(todayIso()));
   const [viewMode, setViewMode] = useState<"week" | "month">("week");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [monthStart, setMonthStart] = useState(() => startOfMonth(todayIso()));
   const dates = useMemo(() => weekDates(weekStart), [weekStart]);
   const [selectedDay, setSelectedDay] = useState(0);
@@ -699,6 +700,53 @@ export function ScheduleWorkspace() {
       );
     }
   };
+  const runValidation = useCallback(async () => {
+    if (!weekId || weekRevision === null) return;
+    setValidationState("running");
+    setValidationMessage("");
+    setValidationIssues([]);
+    try {
+      const result = await validateSchedule(weekId, weekRevision);
+      setValidationIssues(result.violations as ValidationIssue[]);
+      setValidationState(result.blocking ? "failed" : "passed");
+      setValidationMessage(
+        result.blocking
+          ? `${result.blocking} conflito(s) bloqueante(s) encontrado(s).`
+          : "Validação autoritativa concluída sem bloqueios.",
+      );
+    } catch {
+      setValidationState("error");
+      setValidationMessage(
+        "Não foi possível validar esta revisão. Atualize a semana e tente novamente.",
+      );
+    }
+  }, [weekId, weekRevision]);
+  // Keyboard shortcuts: ← → move the selected day, / focuses search, V runs validation, Esc
+  // closes the shift editor. Ignored while typing in a field (except Esc, which should still
+  // close the editor from inside its own inputs).
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        if (editDraft) setEditDraft(null);
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      const isTyping = target ? ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) : false;
+      if (isTyping || editDraft) return;
+      if (event.key === "/") {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      } else if (viewMode === "week" && event.key === "ArrowLeft") {
+        setSelectedDay((day) => Math.max(0, day - 1));
+      } else if (viewMode === "week" && event.key === "ArrowRight") {
+        setSelectedDay((day) => Math.min(6, day + 1));
+      } else if (event.key.toLowerCase() === "v") {
+        runValidation();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [editDraft, viewMode, runValidation]);
   const exportCsv = () => {
     const rows = scheduleEmployees.flatMap((employee) =>
       dates.map((day, index) => {
@@ -814,27 +862,7 @@ export function ScheduleWorkspace() {
               weekRevision === null ||
               validationState === "running"
             }
-            onClick={async () => {
-              if (!weekId || weekRevision === null) return;
-              setValidationState("running");
-              setValidationMessage("");
-              setValidationIssues([]);
-              try {
-                const result = await validateSchedule(weekId, weekRevision);
-                setValidationIssues(result.violations as ValidationIssue[]);
-                setValidationState(result.blocking ? "failed" : "passed");
-                setValidationMessage(
-                  result.blocking
-                    ? `${result.blocking} conflito(s) bloqueante(s) encontrado(s).`
-                    : "Validação autoritativa concluída sem bloqueios.",
-                );
-              } catch {
-                setValidationState("error");
-                setValidationMessage(
-                  "Não foi possível validar esta revisão. Atualize a semana e tente novamente.",
-                );
-              }
-            }}
+            onClick={runValidation}
           >
             <ShieldCheck size={16} />
             {validationState === "running"
@@ -941,9 +969,10 @@ export function ScheduleWorkspace() {
         <label className="search">
           <Search size={16} />
           <input
+            ref={searchInputRef}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar colaborador"
+            placeholder="Buscar colaborador (/)"
           />
         </label>
       </section>
@@ -1458,6 +1487,7 @@ export function ScheduleWorkspace() {
           Folga
         </span>
         <span>Fonte: escala física enviada · transcrição inicial</span>
+        <span className="shortcuts-hint">Atalhos: ← → dia · / buscar · V validar · Esc fechar</span>
       </footer>
     </>
   );
