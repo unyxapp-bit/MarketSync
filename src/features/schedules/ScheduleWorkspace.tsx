@@ -25,6 +25,7 @@ import { addDays, mondayOf, todayIso, weekDates, weekRangeLabel, weekdayShort } 
 import { downloadCsv, toCsv } from "../../lib/csv";
 import {
   getStoreEmployees,
+  getStoreSectors,
   importReceivedWeek,
   loadCanonicalWeek,
   loadComplianceContext,
@@ -34,12 +35,14 @@ import {
   validateSchedule,
   type ComplianceEntryRow,
   type HolidayRow,
+  type SectorRow,
 } from "../../lib/marketSyncApi";
 import { useStore } from "../../shared/StoreContext";
 
 // The only week importReceivedWeek knows how to seed (it transcribes one specific physical
 // schedule). Every other week is navigated to and edited purely through Supabase.
 const PILOT_IMPORT_WEEK_START = "2026-09-14";
+const UNASSIGNED_SECTOR = "Sem setor";
 
 function buildHistoryMap(rows: ComplianceEntryRow[]) {
   const map = new Map<string, Map<string, Shift | null>>();
@@ -134,6 +137,7 @@ export function ScheduleWorkspace() {
   const [weekRevision, setWeekRevision] = useState<number | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [ruleParameters, setRuleParameters] = useState<Record<string, Record<string, number>>>({});
+  const [sectorList, setSectorList] = useState<SectorRow[]>([]);
   const [holidays, setHolidays] = useState<HolidayRow[]>([]);
   const [holidayAuthorizedByEmployeeDay, setHolidayAuthorizedByEmployeeDay] = useState<
     Map<string, Set<string>>
@@ -167,14 +171,18 @@ export function ScheduleWorkspace() {
             return {
               id: row.id,
               name: row.full_name,
-              sector: (sectorName === "Fiscal"
-                ? "Fiscal"
-                : "Caixa") as Employee["sector"],
+              sector: sectorName ?? UNASSIGNED_SECTOR,
             };
           }),
         );
       })
       .catch(() => setImportState("error"));
+  }, [store]);
+  useEffect(() => {
+    if (!store) return;
+    getStoreSectors(store.id)
+      .then(setSectorList)
+      .catch(() => setSectorList([]));
   }, [store]);
   useEffect(() => {
     if (!store) return;
@@ -261,6 +269,19 @@ export function ScheduleWorkspace() {
       ),
     [search, scheduleEmployees],
   );
+  // Renders one schedule section per real sector instead of the old fixed Caixa/Fiscal pair, so
+  // any sector created in Colaboradores > Setores shows up here automatically. Known sectors keep
+  // the store's configured order and color; anything else (legacy data, unassigned) is appended.
+  const colorBySector = useMemo(
+    () => new Map(sectorList.map((sector) => [sector.name, sector.color])),
+    [sectorList],
+  );
+  const sectionNames = useMemo(() => {
+    const known = sectorList.map((sector) => sector.name);
+    const present = new Set(scheduleEmployees.map((employee) => employee.sector));
+    const extra = [...present].filter((name) => !known.includes(name)).sort();
+    return [...known, ...extra];
+  }, [sectorList, scheduleEmployees]);
   const timelineByEmployee = useMemo(() => {
     const map = new Map<string, Map<string, Shift | null>>();
     for (const employee of scheduleEmployees) {
@@ -485,7 +506,7 @@ export function ScheduleWorkspace() {
     shift ? `${shift.start}–${shift.breakStart} / ${shift.breakEnd}–${shift.end}` : "Folga";
   const exportPdf = async () => {
     const { buildSchedulePdf } = await import("../../lib/pdf");
-    const sectors = (["Caixa", "Fiscal"] as const)
+    const sectors = sectionNames
       .map((sector) => ({
         name: sector,
         rows: scheduleEmployees
@@ -754,15 +775,19 @@ export function ScheduleWorkspace() {
           </div>
         </section>
       )}
-      {(["Caixa", "Fiscal"] as const).map((sector) => {
+      {sectionNames.map((sector) => {
         const team = reviews.filter(
           (review) => review.employee.sector === sector,
         );
+        if (team.length === 0) return null;
         return (
           <section className="sector" key={sector}>
             <div className="sector-title">
               <div>
-                <span className={`sector-marker ${sector.toLowerCase()}`} />
+                <span
+                  className="sector-marker"
+                  style={{ background: colorBySector.get(sector) ?? "#8590a0" }}
+                />
                 <div>
                   <h3>{sector}</h3>
                   <p>

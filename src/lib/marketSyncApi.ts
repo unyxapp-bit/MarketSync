@@ -357,10 +357,36 @@ export async function getStoreTeam(storeId: string) {
   return data ?? []
 }
 
+export type SectorRow = { id: string; name: string; color: string }
+
 export async function getStoreSectors(storeId: string) {
-  const { data, error } = await client().from('sectors').select('id,name').eq('store_id', storeId).order('name')
+  const { data, error } = await client().from('sectors').select('id,name,color').eq('store_id', storeId).order('name')
   if (error) throw error
-  return data ?? []
+  return (data ?? []) as SectorRow[]
+}
+
+const SECTOR_COLOR_PALETTE = ['#167B62', '#717AD1', '#C4841D', '#B23D6B', '#2E86AB', '#5E7C4B']
+
+export async function addSector(storeId: string, name: string, color?: string) {
+  const { data: existing } = await client().from('sectors').select('id').eq('store_id', storeId)
+  const nextColor = color || SECTOR_COLOR_PALETTE[(existing?.length ?? 0) % SECTOR_COLOR_PALETTE.length]
+  const { data, error } = await client()
+    .from('sectors')
+    .insert({ store_id: storeId, name: name.trim(), color: nextColor })
+    .select('id,name,color')
+    .single()
+  if (error) throw error
+  return data as SectorRow
+}
+
+export async function updateSector(sectorId: string, name: string, color: string) {
+  const { error } = await client().from('sectors').update({ name: name.trim(), color }).eq('id', sectorId)
+  if (error) throw error
+}
+
+export async function deleteSector(sectorId: string) {
+  const { error } = await client().from('sectors').delete().eq('id', sectorId)
+  if (error) throw error
 }
 
 export async function inviteStoreMember(input: { storeId: string; email: string; role: 'manager' | 'supervisor' | 'employee' | 'rh' | 'auditor'; sectorIds: string[]; canEditSector: boolean }) {

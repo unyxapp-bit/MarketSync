@@ -1,5 +1,5 @@
 export type Shift = { start: string; breakStart: string; breakEnd: string; end: string }
-export type Employee = { name: string; sector: 'Caixa' | 'Fiscal'; schedule: Array<Shift | null> }
+export type Employee = { name: string; sector: string; schedule: Array<Shift | null> }
 
 const shift = (start: string, breakStart: string, breakEnd: string, end: string): Shift => ({ start, breakStart, breakEnd, end })
 const M = shift('07:40', '12:20', '14:20', '17:40')
