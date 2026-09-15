@@ -17,6 +17,13 @@ import {
 import { todayIso } from "../../lib/dates";
 import { EmployeeCsvImport } from "./EmployeeCsvImport";
 
+const statusToneClass: Record<string, string> = {
+  good: "bg-brand-soft text-brand-dark",
+  warn: "bg-warn-soft text-warn",
+  neutral: "bg-line-soft text-muted",
+};
+const decisionClass = "justify-self-start rounded-[6px] py-[5px] px-2 text-[10px] font-bold tracking-[-0.01em]";
+
 type Sector = { id: string; name: string };
 type StatusFilter = "all" | "active" | "leave" | "terminated";
 
@@ -196,24 +203,29 @@ export function EmployeeDirectory({ storeId }: { storeId: string }) {
           <h2>Colaboradores</h2>
           <p>Dados básicos, contrato, carga semanal e restrições de disponibilidade.</p>
         </div>
-        <div className="directory-add-group">
+        <div className="flex gap-2">
           <button className="outline" type="button" onClick={() => setImportOpen(true)}>
             <Upload size={15} />
             Importar CSV
           </button>
-          <button className="solid directory-add" type="button" onClick={openCreate}>
+          <button className="solid" type="button" onClick={openCreate}>
             <Plus size={15} />
             Novo colaborador
           </button>
         </div>
       </div>
 
-      <div className="directory-toolbar">
-        <label className="search">
+      <div className="flex items-center justify-between gap-[14px] my-[14px] flex-wrap">
+        <label className="w-[210px] h-[37px] border border-[#dce2e8] bg-white rounded-[7px] flex items-center gap-[7px] text-[#8290a1] px-[10px]">
           <Search size={16} />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nome" />
+          <input
+            className="border-0 outline-none w-full text-[12px] text-[#334155]"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nome"
+          />
         </label>
-        <div className="conflict-filters">
+        <div className="flex gap-[6px]">
           {(
             [
               ["all", "Todos"],
@@ -225,7 +237,11 @@ export function EmployeeDirectory({ storeId }: { storeId: string }) {
             <button
               key={value}
               type="button"
-              className={`filter-pill ${statusFilter === value ? "active" : ""}`}
+              className={`rounded-full py-[7px] px-[13px] text-[11px] font-bold border ${
+                statusFilter === value
+                  ? "border-[#102a43] bg-brand-soft text-brand-dark"
+                  : "border-[#dce3e8] bg-white text-[#536174]"
+              }`}
               onClick={() => setStatusFilter(value)}
             >
               {label}
@@ -234,35 +250,39 @@ export function EmployeeDirectory({ storeId }: { storeId: string }) {
         </div>
       </div>
 
-      <div className="audit-card directory-card">
-        <div className="audit-head directory-head">
-          <span>Colaborador</span>
+      <div className="border border-[#e1e6eb] rounded-md bg-surface shadow-xs overflow-auto mb-2">
+        <div className="grid grid-cols-[2fr_1fr_1fr_80px_110px] min-w-0 items-center h-[38px] bg-[#f8fafb] text-[#8490a0] text-[10px] font-extrabold uppercase tracking-[0.35px]">
+          <span className="pl-4">Colaborador</span>
           <span>Setor</span>
           <span>Matrícula</span>
           <span>Carga</span>
           <span>Status</span>
         </div>
-        {visible.length === 0 && <p className="empty">Nenhum colaborador encontrado.</p>}
+        {visible.length === 0 && <p className="empty p-4">Nenhum colaborador encontrado.</p>}
         {visible.map((employee) => (
           <button
             type="button"
-            className="audit-row directory-row"
+            className="grid grid-cols-[2fr_1fr_1fr_80px_110px] min-w-0 items-center w-full bg-transparent border-0 border-t border-[#edf0f2] text-left cursor-pointer font-inherit text-inherit min-h-[53px] hover:bg-[#f8fbf9]"
             key={employee.id}
             onClick={() => openEdit(employee)}
           >
-            <div className="person">
-              <span className="person-avatar">
+            <div className="flex gap-[10px] items-center pl-4">
+              <span className="h-7 w-7 rounded-full bg-[#e9f1ed] text-[#276a59] grid place-items-center text-[9px] font-extrabold shrink-0">
                 <User size={13} />
               </span>
-              <div>
-                <strong>{employee.full_name}</strong>
-                <small>{employee.job_title}</small>
+              <div className="min-w-0">
+                <strong className="block text-[12px] text-[#2c394d] overflow-hidden text-ellipsis whitespace-nowrap">
+                  {employee.full_name}
+                </strong>
+                <small className="block text-[#8590a0] text-[10px] mt-[2px]">{employee.job_title}</small>
               </div>
             </div>
             <span>{firstOf(employee.sectors)?.name ?? "—"}</span>
             <span>{employee.registration ?? "—"}</span>
             <span>{employee.weekly_hours}h</span>
-            <span className={`decision ${statusTone[employee.status]}`}>{statusLabel[employee.status]}</span>
+            <span className={`${decisionClass} ${statusToneClass[statusTone[employee.status]]}`}>
+              {statusLabel[employee.status]}
+            </span>
           </button>
         ))}
       </div>
