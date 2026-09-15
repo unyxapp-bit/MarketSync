@@ -3138,3 +3138,254 @@ footer span:last-child {
   justify-content: flex-start;
   padding-top: 4px;
 }
+
+/* ============================================================================================
+   MODERN ENTERPRISE — authoritative visual pass, appended last on purpose.
+   This file accumulated two half-competing design passes across many feature sessions (an early
+   "gradient/shadow" hero+button treatment around the top of the file, then a flatter one further
+   down that ended up winning the cascade for some properties but not others — e.g. the sidebar
+   stayed on the fancier navy treatment while hero/buttons landed on the plain one). Rather than
+   hunt down and delete every superseded declaration across ~3000 lines (real risk of breaking a
+   rule some other selector still depends on), this section is the single source of truth for the
+   shared visual language — typography, buttons, cards, sidebar/topbar, status pills — and wins by
+   simply coming last, same-specificity selectors going by source order.
+   ============================================================================================ */
+
+:root {
+  --ink: #0f172a;
+  --ink-soft: #334155;
+  --muted: #64748b;
+  --muted-soft: #94a3b8;
+  --line: #e2e8f0;
+  --line-soft: #edf1f5;
+  --surface: #ffffff;
+  --canvas: #f6f7f9;
+  --sidebar-bg: #0b1220;
+  --sidebar-hover: #18213a;
+  --sidebar-text: #93a1b8;
+  --brand: #0e7a5f;
+  --brand-dark: #0a5c47;
+  --brand-soft: #e6f4ef;
+  --danger: #b3261e;
+  --danger-soft: #fdecea;
+  --warn: #92650f;
+  --warn-soft: #fdf3dd;
+  --radius-sm: 7px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-sm: 0 2px 10px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 10px 28px rgba(15, 23, 42, 0.08);
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink);
+}
+.workspace {
+  background: var(--canvas);
+}
+
+/* Typography — one weight/letter-spacing scale everywhere instead of each page picking its own */
+h1,
+h2,
+h3,
+h4,
+h5 {
+  font-family: inherit;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  font-weight: 650;
+}
+.eyebrow {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand);
+  margin: 0 0 8px;
+}
+.hero h1,
+.hero-simple h1 {
+  font-size: 23px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+.subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 6px 0 0;
+  letter-spacing: -0.01em;
+}
+
+/* Page header — flat card instead of the soft radial-gradient "landing page" look */
+.hero,
+.hero-simple {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  padding: 20px 26px;
+}
+
+/* Buttons */
+.outline,
+.solid {
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: -0.01em;
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease;
+}
+.outline {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  box-shadow: none;
+}
+.outline:hover {
+  border-color: #c7cfda;
+  background: #fafbfc;
+}
+.solid {
+  background: var(--brand);
+  border: 1px solid var(--brand);
+  color: #fff;
+  box-shadow: none;
+}
+.solid:hover {
+  background: var(--brand-dark);
+  border-color: var(--brand-dark);
+}
+.outline:disabled,
+.solid:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Sidebar + topbar */
+.app-sidebar {
+  background: var(--sidebar-bg);
+  width: 228px;
+  padding: 22px 12px;
+}
+.sidebar-brand {
+  padding: 0 10px 24px;
+}
+.app-sidebar a {
+  color: var(--sidebar-text);
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+}
+.app-sidebar a:hover {
+  background: var(--sidebar-hover);
+  color: #fff;
+}
+.app-sidebar a.active {
+  background: var(--brand);
+  color: #fff;
+  box-shadow: none;
+}
+.app-content {
+  margin-left: 228px;
+}
+@media (max-width: 700px) {
+  .app-content {
+    margin-left: 0;
+  }
+}
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.logo-dot {
+  background: var(--brand);
+  box-shadow: none;
+}
+.sidebar-brand .logo-dot {
+  background: var(--brand);
+}
+
+/* Cards — every card-ish container across the app gets the same border/radius/shadow language */
+.conflict-card,
+.publication-card,
+.settings-card,
+.team-admin,
+.audit,
+.schedule-card,
+.stat-card,
+.week-summary-card,
+.hour-coverage-card,
+.working-now-card,
+.monthly-grid-wrap,
+.monthly-hours-report,
+.coverage-card,
+.pending-card,
+.rules-card,
+.directory-card,
+.auth-card,
+.import-callout,
+.step-tracker,
+.editor-backdrop .shift-editor {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+}
+.stat-card {
+  color: var(--brand);
+}
+.stat-card.critical {
+  border-top: 2px solid var(--danger);
+}
+.stat-card.critical strong {
+  color: var(--danger);
+}
+.stat-card.warn {
+  border-top: 2px solid var(--warn);
+}
+.stat-card.warn strong {
+  color: var(--warn);
+}
+
+/* Status pills — flatter, more restrained than saturated badge backgrounds */
+.status,
+.decision,
+.rule-blocking {
+  border-radius: 6px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.status.good,
+.decision.good {
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+}
+.status.bad,
+.decision.bad {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.status.warn,
+.decision.warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.status.neutral,
+.decision.neutral {
+  background: var(--line-soft);
+  color: var(--muted);
+}
+
+/* Nav-adjacent pills (filters, view toggle) */
+.filter-pill.active,
+.view-toggle button.active {
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+}
