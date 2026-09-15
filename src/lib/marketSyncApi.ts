@@ -685,3 +685,44 @@ export async function updateStoreMember(input: {
   })
   if (error) throw error
 }
+
+export async function getMyProfile() {
+  const { data: auth } = await client().auth.getUser()
+  if (!auth.user) throw new Error('Not authenticated')
+  const { data, error } = await client().from('profiles').select('id,full_name').eq('id', auth.user.id).single()
+  if (error) throw error
+  return { ...data, email: auth.user.email ?? '' }
+}
+
+export async function updateMyProfile(fullName: string) {
+  const { data: auth } = await client().auth.getUser()
+  if (!auth.user) throw new Error('Not authenticated')
+  const { error } = await client().from('profiles').update({ full_name: fullName.trim() }).eq('id', auth.user.id)
+  if (error) throw error
+}
+
+export async function changeMyPassword(newPassword: string) {
+  const { error } = await client().auth.updateUser({ password: newPassword })
+  if (error) throw error
+}
+
+export async function signOut() {
+  const { error } = await client().auth.signOut()
+  if (error) throw error
+}
+
+export async function loadStoreDetails(storeId: string) {
+  const { data, error } = await client().from('stores').select('id,name,city,state').eq('id', storeId).single()
+  if (error) throw error
+  return data as { id: string; name: string; city: string | null; state: string | null }
+}
+
+export async function updateStore(input: { storeId: string; name: string; city: string; state: string }) {
+  const { error } = await client().rpc('update_store', {
+    p_store_id: input.storeId,
+    p_name: input.name,
+    p_city: input.city,
+    p_state: input.state,
+  })
+  if (error) throw error
+}

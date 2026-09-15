@@ -14,6 +14,7 @@ import { ConflictsPage } from "./features/conflicts/ConflictsPage";
 import { PublicationsPage } from "./features/publications/PublicationsPage";
 import { RulesPage } from "./features/rules/RulesPage";
 import { AuditPage } from "./features/audit/AuditPage";
+import { SettingsPage } from "./features/settings/SettingsPage";
 import "./App.css";
 
 function App() {
@@ -77,6 +78,7 @@ function App() {
             <Route path="/app/rules" element={<RulesPage />} />
             <Route path="/app/publications" element={<PublicationsPage />} />
             <Route path="/app/audit" element={<AuditPage />} />
+            <Route path="/app/settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/app" replace />} />
           </Route>
         </Routes>
