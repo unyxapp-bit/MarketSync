@@ -3298,6 +3298,63 @@ h5 {
     margin-left: 0;
   }
 }
+
+/* Collapsible sidebar */
+.app-sidebar {
+  transition: width 0.16s ease;
+}
+.app-content {
+  transition: margin-left 0.16s ease;
+}
+.sidebar-collapse-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  margin-top: 10px;
+  border: 0;
+  border-top: 1px solid #1e2a44;
+  border-radius: 0;
+  background: transparent;
+  color: var(--sidebar-text);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sidebar-collapse-toggle:hover {
+  color: #fff;
+}
+.workspace.sidebar-collapsed .app-sidebar {
+  width: 72px;
+  padding: 22px 10px;
+}
+.workspace.sidebar-collapsed .app-content {
+  margin-left: 72px;
+}
+.workspace.sidebar-collapsed .sidebar-brand {
+  justify-content: center;
+  padding: 0 0 24px;
+}
+.workspace.sidebar-collapsed .sidebar-brand strong {
+  display: none;
+}
+.workspace.sidebar-collapsed .app-sidebar a {
+  justify-content: center;
+  padding: 0;
+}
+.workspace.sidebar-collapsed .sidebar-collapse-toggle {
+  justify-content: center;
+}
+@media (max-width: 700px) {
+  .workspace.sidebar-collapsed .app-content {
+    margin-left: 0;
+  }
+  .sidebar-collapse-toggle {
+    display: none;
+  }
+}
 .topbar {
   background: var(--surface);
   border-bottom: 1px solid var(--line);
