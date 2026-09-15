@@ -8,6 +8,7 @@ import {
   Clock3,
   Download,
   FileDown,
+  Monitor,
   Pencil,
   Search,
   ShieldCheck,
@@ -140,6 +141,8 @@ export function ScheduleWorkspace() {
   const [weekStart, setWeekStart] = useState(() => mondayOf(todayIso()));
   const [viewMode, setViewMode] = useState<"week" | "month">("week");
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const muralRef = useRef<HTMLDivElement>(null);
+  const [isMural, setIsMural] = useState(false);
   const [monthStart, setMonthStart] = useState(() => startOfMonth(todayIso()));
   const dates = useMemo(() => weekDates(weekStart), [weekStart]);
   const [selectedDay, setSelectedDay] = useState(0);
@@ -700,6 +703,19 @@ export function ScheduleWorkspace() {
       );
     }
   };
+  // Modo mural: fullscreens just the day-heading-through-sector-sections container, not the
+  // whole app — the browser then naturally omits the sidebar/topbar/hero buttons since they're
+  // outside that element in the DOM, no CSS-hiding tricks needed. isMural just controls the
+  // smaller in-page chrome (pencils, search) within that container.
+  useEffect(() => {
+    const handler = () => setIsMural(document.fullscreenElement === muralRef.current);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
+  const toggleMural = () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else muralRef.current?.requestFullscreen();
+  };
   const runValidation = useCallback(async () => {
     if (!weekId || weekRevision === null) return;
     setValidationState("running");
@@ -873,6 +889,10 @@ export function ScheduleWorkspace() {
             <FileDown size={16} />
             Imprimir mural
           </button>
+          <button className="outline" onClick={toggleMural} disabled={viewMode !== "week"}>
+            <Monitor size={16} />
+            Modo mural (tela cheia)
+          </button>
           <button className="outline" onClick={exportCsv} disabled={!weekId}>
             <FileDown size={16} />
             Exportar CSV
@@ -955,6 +975,7 @@ export function ScheduleWorkspace() {
           <ChevronRight size={18} />
         </button>
       </section>
+      <div ref={muralRef} className={isMural ? "mural-active" : ""}>
       <section className="day-heading">
         <div>
           <div className="date-pill">
@@ -1223,6 +1244,7 @@ export function ScheduleWorkspace() {
           </section>
         );
       })}
+      </div>
       <section className="audit">
         <div className="audit-title">
           <div>

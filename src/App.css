@@ -921,6 +921,16 @@ main {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+.mural-active {
+  background: var(--cream);
+  padding: 28px 40px 60px;
+  min-height: 100vh;
+  overflow-y: auto;
+}
+.mural-active .edit-shift,
+.mural-active .search {
+  display: none;
+}
 .hour-coverage-card {
   background: #fff;
   border: 1px solid var(--line);
