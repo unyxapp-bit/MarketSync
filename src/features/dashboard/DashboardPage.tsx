@@ -15,6 +15,25 @@ import {
 } from "../../lib/marketSyncApi";
 import { mondayOf, todayIso, weekRangeLabel } from "../../lib/dates";
 import { useStore } from "../../shared/StoreContext";
+import { PageHero } from "../../shared/ui/PageHero";
+
+const statCardTone: Record<"default" | "critical" | "warn", string> = {
+  default: "text-brand",
+  critical: "border-t-2 border-t-danger text-[#b23d34]",
+  warn: "border-t-2 border-t-warn text-[#b17c2f]",
+};
+const statStrongTone: Record<"default" | "critical" | "warn", string> = {
+  default: "text-ink",
+  critical: "text-danger",
+  warn: "text-warn",
+};
+const cardClass = "bg-surface border border-line rounded-md shadow-xs p-[18px]";
+const cardHeadingClass = "text-[14px] mb-[14px] m-0 text-[#2b394e]";
+const pendingToneClass: Record<PendingAction["tone"], { bg: string; strong: string }> = {
+  bad: { bg: "bg-[#fff1ef]", strong: "text-[#b23d34]" },
+  warn: { bg: "bg-[#fff8ea]", strong: "text-[#97671a]" },
+  neutral: { bg: "bg-[#f7f8fa]", strong: "text-[#2b394e]" },
+};
 
 type SectorCoverage = { sector: string; filled: number; total: number };
 type PendingAction = {
@@ -206,88 +225,118 @@ export function DashboardPage() {
 
   return (
     <>
-      <section className="hero hero-simple">
-        <div>
-          <p className="eyebrow">PAINEL OPERACIONAL</p>
-          <h1>Visão geral</h1>
-          <p className="subtitle">Semana de {weekRangeLabel(weekStart)}</p>
-        </div>
-      </section>
-      <section className="stat-grid">
-        <div className="stat-card">
+      <PageHero eyebrow="PAINEL OPERACIONAL" title="Visão geral" subtitle={`Semana de ${weekRangeLabel(weekStart)}`} />
+      <section className="grid grid-cols-4 max-[900px]:grid-cols-2 gap-[14px] my-7">
+        <div className={`p-4 grid gap-[6px] ${cardClass} ${statCardTone.default}`}>
           <Users size={18} />
-          <strong>{loading ? "—" : employeeCount}</strong>
-          <span>colaboradores ativos</span>
+          <strong className={`text-[26px] tracking-[-0.6px] ${statStrongTone.default}`}>
+            {loading ? "—" : employeeCount}
+          </strong>
+          <span className="text-[11px] text-muted">colaboradores ativos</span>
         </div>
-        <div className="stat-card critical">
+        <div className={`p-4 grid gap-[6px] ${cardClass} ${statCardTone.critical}`}>
           <CircleAlert size={18} />
-          <strong>{loading ? "—" : critical}</strong>
-          <span>conflitos críticos</span>
+          <strong className={`text-[26px] tracking-[-0.6px] ${statStrongTone.critical}`}>
+            {loading ? "—" : critical}
+          </strong>
+          <span className="text-[11px] text-muted">conflitos críticos</span>
         </div>
-        <div className="stat-card warn">
+        <div className={`p-4 grid gap-[6px] ${cardClass} ${statCardTone.warn}`}>
           <AlertTriangle size={18} />
-          <strong>{loading ? "—" : warnings}</strong>
-          <span>alertas para revisar</span>
+          <strong className={`text-[26px] tracking-[-0.6px] ${statStrongTone.warn}`}>
+            {loading ? "—" : warnings}
+          </strong>
+          <span className="text-[11px] text-muted">alertas para revisar</span>
         </div>
-        <div className="stat-card">
+        <div className={`p-4 grid gap-[6px] ${cardClass} ${statCardTone.default}`}>
           <ClipboardList size={18} />
-          <strong>{loading ? "—" : `${fillPercent}%`}</strong>
-          <span>escala preenchida</span>
+          <strong className={`text-[26px] tracking-[-0.6px] ${statStrongTone.default}`}>
+            {loading ? "—" : `${fillPercent}%`}
+          </strong>
+          <span className="text-[11px] text-muted">escala preenchida</span>
         </div>
       </section>
-      <section className="dashboard-grid">
-        <div className="coverage-card">
-          <h2>Cobertura por setor</h2>
+      <section className="grid grid-cols-[1.4fr_1fr] max-[900px]:grid-cols-1 gap-4 items-start">
+        <div className={cardClass}>
+          <h2 className={cardHeadingClass}>Cobertura por setor</h2>
           {coverage.length === 0 && !loading && (
-            <p className="empty">Nenhum colaborador cadastrado ainda.</p>
+            <p className="text-[11px] text-[#68778a] m-0">Nenhum colaborador cadastrado ainda.</p>
           )}
           {coverage.map(({ sector, filled, total }) => {
             const percent = total ? Math.round((filled / total) * 100) : 0;
             return (
-              <div className="coverage-row" key={sector}>
+              <div className="grid grid-cols-[110px_1fr_36px] items-center gap-[10px] py-[7px] text-[12px] text-[#536174]" key={sector}>
                 <span>{sector}</span>
-                <div className="coverage-bar">
-                  <div className="coverage-bar-fill" style={{ width: `${percent}%` }} />
+                <div className="h-[7px] rounded-full bg-[#eef1f3] overflow-hidden">
+                  <div className="h-full bg-[#30a47c] rounded-full" style={{ width: `${percent}%` }} />
                 </div>
-                <small>{percent}%</small>
+                <small className="text-right text-[#7d8999]">{percent}%</small>
               </div>
             );
           })}
         </div>
-        <div className="pending-card">
-          <h2>Ações pendentes</h2>
-          <ul className="pending-list">
-            {pendingActions.map((action) => (
-              <li key={action.text} className={`pending-item ${action.tone}`}>
-                <Link to={action.to}>
-                  <strong>{action.text}</strong>
-                  <small>{action.detail}</small>
-                </Link>
-              </li>
-            ))}
+        <div className={cardClass}>
+          <h2 className={cardHeadingClass}>Ações pendentes</h2>
+          <ul className="list-none m-0 p-0 grid gap-[6px]">
+            {pendingActions.map((action) => {
+              const tone = pendingToneClass[action.tone];
+              return (
+                <li key={action.text}>
+                  <Link
+                    className={`flex justify-between items-center gap-[10px] px-[10px] py-[9px] rounded-[8px] no-underline ${tone.bg}`}
+                    to={action.to}
+                  >
+                    <strong className={`text-[12px] ${tone.strong}`}>{action.text}</strong>
+                    <small className="text-[10px] text-[#7d8999]">{action.detail}</small>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
-          <Link className="pending-cta" to="/app/schedules">
+          <Link
+            className="inline-flex items-center gap-[6px] mt-[14px] text-[#087b61] text-[12px] font-bold no-underline"
+            to="/app/schedules"
+          >
             <CalendarClock size={14} />
             Abrir escala da semana
           </Link>
         </div>
       </section>
-      <section className="working-now-card">
-        <h2>
+      <section className={`${cardClass} mt-4`}>
+        <h2 className={`flex items-center gap-[7px] ${cardHeadingClass}`}>
           <Radio size={15} /> Quem está trabalhando agora
         </h2>
         {todayStatuses.length === 0 ? (
-          <p className="empty">Ninguém escalado para trabalhar hoje.</p>
+          <p className="text-[11px] text-[#68778a] m-0">Ninguém escalado para trabalhar hoje.</p>
         ) : (
-          <div className="working-now-list">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-2">
             {todayStatuses.map((person) => (
-              <div className={`working-now-row ${person.status}`} key={person.employeeId}>
-                <span className="working-now-dot" />
-                <div>
-                  <strong>{person.name}</strong>
-                  <small>{person.sector}</small>
+              <div
+                className={`flex items-center gap-[9px] px-[10px] py-[9px] rounded-[8px] ${
+                  person.status === "working"
+                    ? "bg-[#eaf6f0]"
+                    : person.status === "done"
+                      ? "bg-[#f7f8fa] opacity-[.55]"
+                      : "bg-[#f7f8fa]"
+                }`}
+                key={person.employeeId}
+              >
+                <span
+                  className={`h-2 w-2 rounded-full shrink-0 ${
+                    person.status === "working"
+                      ? "bg-[#167a62]"
+                      : person.status === "break"
+                        ? "bg-[#d9822b]"
+                        : person.status === "upcoming"
+                          ? "bg-[#7b8798]"
+                          : "bg-[#b6bfca]"
+                  }`}
+                />
+                <div className="flex-1 min-w-0">
+                  <strong className="block text-[12px] text-[#2b394e]">{person.name}</strong>
+                  <small className="block text-[10px] text-[#7d8999] mt-px">{person.sector}</small>
                 </div>
-                <span className="working-now-detail">{person.detail}</span>
+                <span className="text-[10px] text-[#7d8999] whitespace-nowrap">{person.detail}</span>
               </div>
             ))}
           </div>
