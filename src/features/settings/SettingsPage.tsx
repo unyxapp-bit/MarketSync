@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { KeyRound, LogOut, Save, Store as StoreIcon, User } from "lucide-react";
+import { Building2, KeyRound, LogOut, Save, Store as StoreIcon, User } from "lucide-react";
 import {
   changeMyPassword,
   getMyProfile,
+  loadOrganizationName,
   loadStoreDetails,
   signOut,
   updateMyProfile,
+  updateOrganization,
   updateStore,
 } from "../../lib/marketSyncApi";
 import { useStore } from "../../shared/StoreContext";
@@ -37,6 +39,11 @@ export function SettingsPage() {
   const [storeTone, setStoreTone] = useState<"saving" | "error">("saving");
   const [storeMessage, setStoreMessage] = useState("");
 
+  const [orgName, setOrgName] = useState("");
+  const [savingOrg, setSavingOrg] = useState(false);
+  const [orgTone, setOrgTone] = useState<"saving" | "error">("saving");
+  const [orgMessage, setOrgMessage] = useState("");
+
   useEffect(() => {
     getMyProfile()
       .then((profile) => {
@@ -54,6 +61,9 @@ export function SettingsPage() {
         setStoreCity(details.city ?? "");
         setStoreState(details.state ?? "");
       })
+      .catch(() => undefined);
+    loadOrganizationName(store.organizationId)
+      .then(setOrgName)
       .catch(() => undefined);
   }, [store]);
 
@@ -98,6 +108,27 @@ export function SettingsPage() {
       setPasswordMessage("Não foi possível alterar a senha.");
     } finally {
       setSavingPassword(false);
+    }
+  };
+
+  const submitOrg = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!store) return;
+    setSavingOrg(true);
+    setOrgMessage("");
+    try {
+      await updateOrganization(store.organizationId, orgName);
+      setOrgTone("saving");
+      setOrgMessage("Nome da empresa atualizado.");
+    } catch (error) {
+      setOrgTone("error");
+      setOrgMessage(
+        error instanceof Error && error.message.includes("owner")
+          ? "Apenas o administrador (owner) da organização pode renomear a empresa."
+          : "Não foi possível salvar.",
+      );
+    } finally {
+      setSavingOrg(false);
     }
   };
 
@@ -203,6 +234,32 @@ export function SettingsPage() {
           </button>
         </div>
       </section>
+
+      {store && (
+        <section className="conflict-card settings-card">
+          <div className="audit-title">
+            <div>
+              <h2>
+                <Building2 size={16} /> Empresa
+              </h2>
+              <p>O nome da organização, compartilhado por todas as lojas/filiais. Só o administrador edita.</p>
+            </div>
+          </div>
+          <form className="directory-form" onSubmit={submitOrg}>
+            <label>
+              Nome da empresa
+              <input required value={orgName} onChange={(event) => setOrgName(event.target.value)} />
+            </label>
+            {orgMessage && <p className={`editor-message ${orgTone}`}>{orgMessage}</p>}
+            <div className="editor-actions">
+              <button className="solid" type="submit" disabled={savingOrg}>
+                <Save size={15} />
+                {savingOrg ? "Salvando..." : "Salvar nome da empresa"}
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
 
       {store && (
         <section className="conflict-card settings-card">

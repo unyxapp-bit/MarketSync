@@ -781,6 +781,17 @@ export async function loadStoreDetails(storeId: string) {
   return data as { id: string; name: string; city: string | null; state: string | null }
 }
 
+export async function loadOrganizationName(organizationId: string) {
+  const { data, error } = await client().from('organizations').select('name').eq('id', organizationId).single()
+  if (error) throw error
+  return data.name as string
+}
+
+export async function updateOrganization(organizationId: string, name: string) {
+  const { error } = await client().rpc('update_organization', { p_organization_id: organizationId, p_name: name })
+  if (error) throw error
+}
+
 export async function updateStore(input: { storeId: string; name: string; city: string; state: string }) {
   const { error } = await client().rpc('update_store', {
     p_store_id: input.storeId,
