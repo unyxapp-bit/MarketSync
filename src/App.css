@@ -2034,6 +2034,18 @@ footer span:last-child {
     min-width: 710px;
     width: 710px;
   }
+  /* .schedule-card previously clipped (overflow: hidden) instead of scrolling on narrow
+     viewports, so every column past "Colaborador" was simply invisible with no way to reach it —
+     this makes the grid explicitly wide and the card scrollable instead. */
+  .schedule-header.schedule-seven,
+  .schedule-row.schedule-seven {
+    grid-template-columns: 170px repeat(6, 108px);
+    min-width: 818px;
+    width: 818px;
+  }
+  .schedule-card {
+    overflow-x: auto;
+  }
   .audit-title {
     align-items: start;
     gap: 10px;
