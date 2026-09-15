@@ -415,6 +415,99 @@ footer {
   align-self: center;
   color: #8793a2;
 }
+.store-switcher {
+  position: relative;
+}
+.dropdown-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: transparent;
+  border: 0;
+  cursor: default;
+}
+.store-switcher-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 25px;
+  z-index: 41;
+  width: 260px;
+  background: #fff;
+  border: 1px solid #e1e6eb;
+  border-radius: 10px;
+  box-shadow: 0 12px 28px #10182814;
+  padding: 8px;
+  display: grid;
+  gap: 2px;
+}
+.store-switcher-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  background: transparent;
+  border-radius: 7px;
+  padding: 9px 10px;
+  font-size: 12px;
+  color: #2b394e;
+  text-align: left;
+  cursor: pointer;
+}
+.store-switcher-option:hover {
+  background: #f4f7f6;
+}
+.store-switcher-option.active {
+  background: #eaf6f0;
+  color: #167a62;
+  font-weight: 700;
+}
+.store-switcher-divider {
+  height: 1px;
+  background: #edf0f2;
+  margin: 6px 2px;
+}
+.store-switcher-form {
+  display: grid;
+  gap: 8px;
+  padding: 8px 10px 10px;
+}
+.store-switcher-form-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  color: #4e5d71;
+}
+.store-switcher-form-head button {
+  border: 0;
+  background: transparent;
+  color: #8590a0;
+  cursor: pointer;
+}
+.store-switcher-form input {
+  height: 34px;
+  border: 1px solid #dce3e8;
+  border-radius: 6px;
+  padding: 0 9px;
+  font-size: 12px;
+}
+.store-switcher-form-row {
+  display: grid;
+  grid-template-columns: 1fr 60px;
+  gap: 8px;
+}
+.store-switcher-message {
+  font-size: 11px;
+  color: #b23d34;
+  margin: 0;
+}
+.store-switcher-form button[type="submit"] {
+  height: 34px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
 nav {
   display: flex;
   align-self: stretch;

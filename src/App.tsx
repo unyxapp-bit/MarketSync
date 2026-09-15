@@ -7,6 +7,7 @@ import { supabase } from "./lib/supabase";
 import { getMyStores } from "./lib/marketSyncApi";
 import { AppShell } from "./shared/AppShell";
 import { StoreProvider } from "./shared/StoreContext";
+import { StoreListProvider } from "./shared/StoreListContext";
 import { DashboardPage } from "./features/dashboard/DashboardPage";
 import { ScheduleWorkspace } from "./features/schedules/ScheduleWorkspace";
 import { EmployeesPage } from "./features/employees/EmployeesPage";
@@ -17,13 +18,22 @@ import { AuditPage } from "./features/audit/AuditPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import "./App.css";
 
+const SELECTED_STORE_KEY = "marketsync:selectedStoreId";
+
 function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [loadingSession, setLoadingSession] = useState(Boolean(supabase));
   const [hasStore, setHasStore] = useState<boolean | null>(null);
-  const [store, setStore] = useState<
-    { id: string; name: string; organizationId: string } | undefined
-  >();
+  const [allStores, setAllStores] = useState<
+    Array<{ id: string; name: string; organizationId: string }>
+  >([]);
+  const [selectedStoreId, setSelectedStoreId] = useState<string | undefined>(() => {
+    try {
+      return localStorage.getItem(SELECTED_STORE_KEY) ?? undefined;
+    } catch {
+      return undefined;
+    }
+  });
 
   useEffect(() => {
     if (!supabase) return;
@@ -39,23 +49,36 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (!session) {
-      setHasStore(null);
-      setStore(undefined);
-      return;
-    }
+  const refreshStores = () => {
     getMyStores()
       .then((stores) => {
         setHasStore(stores.length > 0);
-        setStore(
-          stores[0]
-            ? { id: stores[0].id, name: stores[0].name, organizationId: stores[0].organization_id }
-            : undefined,
+        setAllStores(
+          stores.map((s) => ({ id: s.id, name: s.name, organizationId: s.organization_id })),
         );
       })
       .catch(() => setHasStore(false));
+  };
+
+  useEffect(() => {
+    if (!session) {
+      setHasStore(null);
+      setAllStores([]);
+      return;
+    }
+    refreshStores();
   }, [session]);
+
+  const store = allStores.find((s) => s.id === selectedStoreId) ?? allStores[0];
+
+  const selectStore = (id: string) => {
+    setSelectedStoreId(id);
+    try {
+      localStorage.setItem(SELECTED_STORE_KEY, id);
+    } catch {
+      // Private browsing or storage disabled — selection just won't survive a reload.
+    }
+  };
 
   if (loadingSession)
     return <main className="auth-page">Carregando acesso seguro…</main>;
@@ -63,25 +86,27 @@ function App() {
   if (supabase && hasStore === null)
     return <main className="auth-page">Carregando sua operação…</main>;
   if (supabase && !hasStore)
-    return <OnboardingScreen onComplete={() => setHasStore(true)} />;
+    return <OnboardingScreen onComplete={refreshStores} />;
 
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <StoreProvider value={store}>
-        <Routes>
-          <Route element={<AppShell />}>
-            <Route index element={<Navigate to="/app" replace />} />
-            <Route path="/app" element={<DashboardPage />} />
-            <Route path="/app/schedules" element={<ScheduleWorkspace />} />
-            <Route path="/app/conflicts" element={<ConflictsPage />} />
-            <Route path="/app/employees" element={<EmployeesPage />} />
-            <Route path="/app/rules" element={<RulesPage />} />
-            <Route path="/app/publications" element={<PublicationsPage />} />
-            <Route path="/app/audit" element={<AuditPage />} />
-            <Route path="/app/settings" element={<SettingsPage />} />
-            <Route path="*" element={<Navigate to="/app" replace />} />
-          </Route>
-        </Routes>
+        <StoreListProvider value={{ stores: allStores, selectStore, refreshStores }}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route index element={<Navigate to="/app" replace />} />
+              <Route path="/app" element={<DashboardPage />} />
+              <Route path="/app/schedules" element={<ScheduleWorkspace />} />
+              <Route path="/app/conflicts" element={<ConflictsPage />} />
+              <Route path="/app/employees" element={<EmployeesPage />} />
+              <Route path="/app/rules" element={<RulesPage />} />
+              <Route path="/app/publications" element={<PublicationsPage />} />
+              <Route path="/app/audit" element={<AuditPage />} />
+              <Route path="/app/settings" element={<SettingsPage />} />
+              <Route path="*" element={<Navigate to="/app" replace />} />
+            </Route>
+          </Routes>
+        </StoreListProvider>
       </StoreProvider>
     </BrowserRouter>
   );

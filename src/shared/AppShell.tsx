@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 import {
   CalendarDays,
-  ChevronDown,
   CircleAlert,
   Clock3,
   History,
@@ -13,7 +12,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useStore } from "./StoreContext";
+import { StoreSwitcher } from "./StoreSwitcher";
 
 const operationLinks = [
   { to: "/app", label: "Visão geral", icon: LayoutGrid, end: true },
@@ -58,8 +57,6 @@ function NavGroup({
 }
 
 export function AppShell() {
-  const store = useStore();
-  const navigate = useNavigate();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const closeMobileNav = () => setMobileNavOpen(false);
 
@@ -105,16 +102,7 @@ export function AppShell() {
               Market<span>Sync</span>
             </strong>
           </div>
-          <button
-            type="button"
-            className="store-picker"
-            onClick={() => navigate("/app/settings")}
-            title="Configurações da conta e da loja"
-          >
-            <span>{store?.name ?? "Sua loja"}</span>
-            <small>Operação conectada ao Supabase</small>
-            <ChevronDown size={15} />
-          </button>
+          <StoreSwitcher />
           <button
             className="menu"
             type="button"

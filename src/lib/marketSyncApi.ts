@@ -415,16 +415,10 @@ export type RuleSetRow = {
 // first. The "active" set is the one with no effective_to (open-ended); if every version has
 // been closed out (shouldn't normally happen) it falls back to the most recent one.
 export async function loadRuleSets(storeId: string) {
-  const { data: store, error: storeError } = await client()
-    .from('stores')
-    .select('organization_id')
-    .eq('id', storeId)
-    .single()
-  if (storeError) throw storeError
   const { data: ruleSets, error: ruleSetsError } = await client()
     .from('rule_sets')
     .select('id,name,version,effective_from,effective_to')
-    .eq('organization_id', store.organization_id)
+    .eq('store_id', storeId)
     .order('effective_from', { ascending: false })
   if (ruleSetsError) throw ruleSetsError
   const rows = (ruleSets ?? []) as RuleSetRow[]
@@ -439,7 +433,7 @@ export async function loadRuleSets(storeId: string) {
     if (error) throw error
     rules = (data ?? []) as RuleRow[]
   }
-  return { organizationId: store.organization_id as string, ruleSets: rows, active, rules }
+  return { ruleSets: rows, active, rules }
 }
 
 export type RuleRevisionInput = {
@@ -464,16 +458,10 @@ export async function createRuleSetRevision(ruleSetId: string, effectiveFrom: st
 // organization configured on the Regras screen instead of hardcoded defaults, for the rule set
 // actually in effect on the displayed week (not just whichever one is active today).
 export async function loadRuleParametersForWeek(storeId: string, weekStart: string) {
-  const { data: store, error: storeError } = await client()
-    .from('stores')
-    .select('organization_id')
-    .eq('id', storeId)
-    .single()
-  if (storeError) throw storeError
   const { data: ruleSets, error: ruleSetsError } = await client()
     .from('rule_sets')
     .select('id,effective_from,effective_to')
-    .eq('organization_id', store.organization_id)
+    .eq('store_id', storeId)
     .order('effective_from', { ascending: false })
   if (ruleSetsError) throw ruleSetsError
   const applicable = (ruleSets ?? []).find(
@@ -738,6 +726,24 @@ export async function changeMyPassword(newPassword: string) {
 export async function signOut() {
   const { error } = await client().auth.signOut()
   if (error) throw error
+}
+
+export async function createBranchStore(input: {
+  organizationId: string
+  sourceStoreId: string
+  name: string
+  city: string
+  state: string
+}) {
+  const { data, error } = await client().rpc('create_branch_store', {
+    p_organization_id: input.organizationId,
+    p_source_store_id: input.sourceStoreId,
+    p_name: input.name,
+    p_city: input.city,
+    p_state: input.state,
+  })
+  if (error) throw error
+  return data as { id: string; name: string; organization_id: string }
 }
 
 export async function loadStoreDetails(storeId: string) {
