@@ -366,7 +366,7 @@ footer {
   gap: 32px;
 }
 .logo {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 8px;
   font-size: 19px;
@@ -1211,6 +1211,9 @@ footer span:last-child {
   .store-picker,
   nav {
     display: none;
+  }
+  .logo {
+    display: flex;
   }
   .menu {
     display: block;
