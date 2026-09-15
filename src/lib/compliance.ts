@@ -11,10 +11,15 @@ export const periodDuration = (start: string, end: string) => formatMinutes(toMi
 export const dailyMinutes = (shift: Shift) =>
   (toMinutes(shift.breakStart) - toMinutes(shift.start)) + (toMinutes(shift.end) - toMinutes(shift.breakEnd))
 
-export const restMinutes = (previous: Shift, current: Shift) => {
-  const difference = toMinutes(current.start) - toMinutes(previous.end)
-  return difference >= 0 ? difference : difference + 24 * 60
-}
+// previous is always the calendar day immediately before current (see the one call site in
+// ScheduleWorkspace, which looks it up via addDays(currentIso, -1)), so the gap is always a full
+// day minus previous's end-of-shift clock time plus current's start-of-shift clock time — never
+// gated by whether the naive same-day subtraction happens to be negative. The old `difference >=
+// 0 ? difference : ...` branch under-reported rest (as little as the same-day gap, sometimes near
+// zero) whenever a shift started later in clock time than the previous day's shift ended, e.g.
+// finishing at 12:00 one day and starting at 14:00 the next — 26h of real rest reported as 2h.
+export const restMinutes = (previous: Shift, current: Shift) =>
+  24 * 60 - toMinutes(previous.end) + toMinutes(current.start)
 
 // timeline maps an ISO date to that employee's shift (null = confirmed day off). A date missing
 // from the map means we have no record for it (never imported), which is different from a

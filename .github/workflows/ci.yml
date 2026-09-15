@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   quality:
-    name: Lint and build
+    name: Lint, test, and build
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -29,6 +29,9 @@ jobs:
 
       - name: Run lint
         run: npm run lint
+
+      - name: Run tests
+        run: npm run test
 
       - name: Build application
         run: npm run build
