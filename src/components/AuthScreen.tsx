@@ -90,40 +90,68 @@ export function AuthScreen() {
         ? "O primeiro acesso cria sua conta de gestor."
         : "Informe seu e-mail e enviaremos um link para você definir uma nova senha.";
 
+  const inputClass =
+    "h-[42px] border border-[#dce3e8] rounded-[7px] px-[11px] outline-none text-[13px] focus:border-[#48a887] focus:shadow-[0_0_0_3px_#e2f5ed]";
+  const labelClass = "grid gap-1.5 text-[11px] font-[750] text-[#435167]";
+
   return (
-    <main className="auth-page">
-      <section className="auth-card">
-        <div className="auth-mark">M</div>
-        <p className="eyebrow">MARKETSYNC</p>
-        <h1>{heading}</h1>
-        <p>{subtitle}</p>
-        <form onSubmit={submit}>
+    <main className="min-h-screen grid place-items-center p-6 bg-[linear-gradient(135deg,#edf8f2,#f9fafb)]">
+      <section className="w-full max-w-[410px] p-9 bg-surface border border-line rounded-md shadow-xs">
+        <div className="h-[42px] w-[42px] grid place-items-center rounded-xl bg-[#177d62] text-white font-bold text-2xl mb-6 font-[Georgia]">
+          M
+        </div>
+        <p className="text-[10.5px] font-bold tracking-[0.08em] uppercase text-brand mb-2">MARKETSYNC</p>
+        <h1 className="text-[27px] tracking-[-1px] mb-[9px] text-ink font-[650]">{heading}</h1>
+        <p className="text-[13px] text-[#69778a] leading-[1.5] mb-[22px]">{subtitle}</p>
+        <form onSubmit={submit} className="grid gap-[14px]">
           {mode === "signup" && (
-            <label>
+            <label className={labelClass}>
               Nome completo
-              <input required name="fullName" placeholder="Seu nome" />
+              <input required name="fullName" placeholder="Seu nome" className={inputClass} />
             </label>
           )}
-          <label>
+          <label className={labelClass}>
             E-mail
-            <input required name="email" type="email" placeholder="voce@empresa.com" />
+            <input required name="email" type="email" placeholder="voce@empresa.com" className={inputClass} />
           </label>
           {mode !== "reset" && (
-            <label>
+            <label className={labelClass}>
               Senha
-              <input required name="password" type="password" minLength={8} placeholder="Mínimo de 8 caracteres" />
+              <input
+                required
+                name="password"
+                type="password"
+                minLength={8}
+                placeholder="Mínimo de 8 caracteres"
+                className={inputClass}
+              />
             </label>
           )}
           {mode === "signup" && (
-            <label>
+            <label className={labelClass}>
               Confirmar senha
-              <input required name="confirmPassword" type="password" minLength={8} placeholder="Repita a senha" />
+              <input
+                required
+                name="confirmPassword"
+                type="password"
+                minLength={8}
+                placeholder="Repita a senha"
+                className={inputClass}
+              />
             </label>
           )}
-          {message && <div className={`auth-message ${messageTone}`}>{message}</div>}
+          {message && (
+            <div
+              className={`text-[11px] leading-[1.4] rounded-[6px] p-[9px] ${
+                messageTone === "info" ? "bg-[#fff7e2] text-[#8b6515]" : "bg-[#fff1ef] text-[#b23d34]"
+              }`}
+            >
+              {message}
+            </div>
+          )}
           {unconfirmedEmail && (
             <button
-              className="auth-forgot"
+              className="block border-0 bg-transparent text-[#7b8798] text-[11px] mt-3 p-0 underline text-left"
               type="button"
               disabled={resending}
               onClick={resendConfirmation}
@@ -131,7 +159,11 @@ export function AuthScreen() {
               {resending ? "Reenviando..." : "Reenviar e-mail de confirmação"}
             </button>
           )}
-          <button disabled={loading} className="solid" type="submit">
+          <button
+            disabled={loading}
+            className="inline-flex items-center justify-center gap-[7px] h-[42px] rounded-[7px] bg-brand border border-brand text-white text-[13px] font-[750] tracking-[-0.01em] transition-colors duration-[120ms] hover:bg-brand-dark hover:border-brand-dark disabled:opacity-[.65] disabled:cursor-wait"
+            type="submit"
+          >
             {loading
               ? "Aguarde..."
               : mode === "signin"
@@ -143,14 +175,22 @@ export function AuthScreen() {
           </button>
         </form>
         {mode === "signin" && (
-          <button className="auth-forgot" type="button" onClick={() => switchMode("reset")}>
+          <button
+            className="block border-0 bg-transparent text-[#7b8798] text-[11px] mt-3 p-0 underline text-left"
+            type="button"
+            onClick={() => switchMode("reset")}
+          >
             Esqueci minha senha
           </button>
         )}
-        <button className="auth-switch" type="button" onClick={() => switchMode(mode === "signin" ? "signup" : "signin")}>
+        <button
+          className="block border-0 bg-transparent text-[#167a62] text-[12px] font-[750] mt-[17px] p-0"
+          type="button"
+          onClick={() => switchMode(mode === "signin" ? "signup" : "signin")}
+        >
           {mode === "signin" ? "Ainda não tenho acesso" : "Já tenho acesso"}
         </button>
-        <small>
+        <small className="mt-[23px] pt-[14px] border-t border-[#edf0f2] text-[#7b8798] text-[10px] flex items-center gap-[5px]">
           <ShieldCheck size={13} />
           Dados protegidos por autenticação e permissões por loja.
         </small>

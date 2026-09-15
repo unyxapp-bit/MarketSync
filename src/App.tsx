@@ -83,13 +83,14 @@ function App() {
     }
   };
 
+  const loadingPageClass = "min-h-screen grid place-items-center p-6 bg-[linear-gradient(135deg,#edf8f2,#f9fafb)]";
   if (loadingSession)
-    return <main className="auth-page">Carregando acesso seguro…</main>;
+    return <main className={loadingPageClass}>Carregando acesso seguro…</main>;
   if (supabase && passwordRecovery)
     return <ResetPasswordScreen onDone={() => setPasswordRecovery(false)} />;
   if (supabase && !session) return <AuthScreen />;
   if (supabase && hasStore === null)
-    return <main className="auth-page">Carregando sua operação…</main>;
+    return <main className={loadingPageClass}>Carregando sua operação…</main>;
   if (supabase && !hasStore)
     return <OnboardingScreen onComplete={refreshStores} />;
 
