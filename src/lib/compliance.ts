@@ -1,4 +1,5 @@
 import type { Shift } from '../data/realSchedule'
+import { addDays } from './dates'
 
 const toMinutes = (time: string) => {
   const [hours, minutes] = time.split(':').map(Number)
@@ -15,11 +16,17 @@ export const restMinutes = (previous: Shift, current: Shift) => {
   return difference >= 0 ? difference : difference + 24 * 60
 }
 
-export const priorWorkStreak = (schedule: Array<Shift | null>, day: number) => {
+// timeline maps an ISO date to that employee's shift (null = confirmed day off). A date missing
+// from the map means we have no record for it (never imported), which is different from a
+// confirmed day off and stops the streak count without claiming to know what happened before it.
+export const priorWorkStreak = (timeline: Map<string, Shift | null> | undefined, iso: string) => {
   let count = 0
-  for (let index = day - 1; index >= 0 && schedule[index]; index -= 1) count += 1
-  return { count, historyStartsBeforeImport: count === day }
+  let cursor = addDays(iso, -1)
+  while (timeline?.has(cursor)) {
+    const shift = timeline.get(cursor)
+    if (!shift) break
+    count += 1
+    cursor = addDays(cursor, -1)
+  }
+  return { count, historyStartsBeforeImport: !timeline?.has(cursor) }
 }
-
-export const lastThreeDays = (schedule: Array<Shift | null>, day: number) =>
-  [day - 3, day - 2, day - 1].map((index) => index < 0 ? undefined : schedule[index])

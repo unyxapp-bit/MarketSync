@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { employees } from '../data/realSchedule'
+import { addDays } from './dates'
 
 export type ShiftDraft = {
   employeeId: string
@@ -56,8 +57,15 @@ export async function saveShift(scheduleWeekId: string, shift: ShiftDraft) {
   if (error) throw error
 }
 
-export async function publishWeek(scheduleId: string, expectedRevision: number) {
-  const { data, error } = await client().rpc('publish_canonical_schedule', { p_schedule_id: scheduleId, p_expected_revision: expectedRevision })
+// idempotencyKey should be generated once per publish attempt and reused across retries of that
+// same attempt, otherwise a network retry with a fresh random key would create a duplicate
+// publication instead of being recognized as the same request.
+export async function publishWeek(scheduleId: string, expectedRevision: number, idempotencyKey: string) {
+  const { data, error } = await client().rpc('publish_canonical_schedule', {
+    p_schedule_id: scheduleId,
+    p_expected_revision: expectedRevision,
+    p_idempotency_key: idempotencyKey,
+  })
   if (error) throw error
   const result = data as { revision: number }
   return result.revision
@@ -111,6 +119,17 @@ export async function importReceivedWeek(storeId: string) {
   return { ...week, canonicalScheduleId }
 }
 
+export async function getStoreEmployees(storeId: string) {
+  const { data, error } = await client()
+    .from('employees')
+    .select('id,full_name,sector_id,sectors(name)')
+    .eq('store_id', storeId)
+    .eq('active', true)
+    .order('full_name')
+  if (error) throw error
+  return data ?? []
+}
+
 export async function loadWeek(storeId: string, weekStart: string) {
   const api = client()
   const { data: week, error: weekError } = await api.from('schedule_weeks').select('id,state,week_start,published_at,revision').eq('store_id', storeId).eq('week_start', weekStart).maybeSingle()
@@ -131,6 +150,153 @@ export async function loadCanonicalWeek(storeId: string, weekStart: string) {
   const { data: entries, error: entriesError } = await api.from('schedule_entries').select('id,employee_id,work_date,day_type,employees(full_name,sector_id,sectors(name)),shift_segments(sequence,starts_at,ends_at)').eq('schedule_id', schedule.id)
   if (entriesError) throw entriesError
   return { schedule, entries: entries ?? [] }
+}
+
+export type ComplianceEntryRow = {
+  employee_id: string
+  work_date: string
+  day_type: string
+  shift_segments: Array<{ sequence: number; starts_at: string; ends_at: string }>
+}
+
+// Same window the validate-schedule Edge Function uses (21 days back, 13 days forward), so the
+// client's advisory pre-check and the server's authoritative validation see the same history.
+export async function loadComplianceContext(storeId: string, weekStart: string) {
+  const start = addDays(weekStart, -21)
+  const end = addDays(weekStart, 13)
+  const { data, error } = await client()
+    .from('schedule_entries')
+    .select('employee_id,work_date,day_type,schedules!inner(store_id),shift_segments(sequence,starts_at,ends_at)')
+    .eq('schedules.store_id', storeId)
+    .gte('work_date', start)
+    .lte('work_date', end)
+  if (error) throw error
+  return (data ?? []) as unknown as ComplianceEntryRow[]
+}
+
+async function findLatestValidationRun(storeId: string, weekStart: string) {
+  const api = client()
+  const { data: schedule, error: scheduleError } = await api
+    .from('schedules')
+    .select('id,revision,status')
+    .eq('store_id', storeId)
+    .eq('week_start', weekStart)
+    .maybeSingle()
+  if (scheduleError) throw scheduleError
+  if (!schedule) return { schedule: null, run: null }
+  const { data: run, error: runError } = await api
+    .from('validation_runs')
+    .select('id,status,completed_at')
+    .eq('schedule_id', schedule.id)
+    .eq('schedule_revision', schedule.revision)
+    .order('completed_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (runError) throw runError
+  return { schedule, run }
+}
+
+// Real numbers for the dashboard, sourced from the authoritative server-side validation
+// (validation_runs/violations) instead of a client-side re-derivation of the same rules.
+export async function loadValidationSummary(storeId: string, weekStart: string) {
+  const { schedule, run } = await findLatestValidationRun(storeId, weekStart)
+  if (!schedule) return null
+  if (!run) return { schedule, run: null, critical: 0, warnings: 0 }
+  const { data: violations, error: violationsError } = await client()
+    .from('violations')
+    .select('severity')
+    .eq('validation_run_id', run.id)
+    .is('resolved_at', null)
+  if (violationsError) throw violationsError
+  const critical = (violations ?? []).filter((v) => v.severity === 'critical').length
+  const warnings = (violations ?? []).filter((v) => v.severity !== 'critical').length
+  return { schedule, run, critical, warnings }
+}
+
+export type ViolationRow = {
+  id: string
+  rule_code: string
+  severity: 'info' | 'warning' | 'critical'
+  blocking: boolean
+  message: string
+  evidence: Record<string, unknown>
+  resolved_at: string | null
+  resolution_note: string | null
+  employee_id: string | null
+  employees: { full_name: string } | { full_name: string }[] | null
+  schedule_entries: { work_date: string } | { work_date: string }[] | null
+}
+
+// Full violation list for the Central de conflitos screen, tied to the latest validation run
+// for the schedule currently displayed (same revision the editor and the dashboard show).
+export async function loadViolationsForWeek(storeId: string, weekStart: string) {
+  const { schedule, run } = await findLatestValidationRun(storeId, weekStart)
+  if (!schedule || !run) return { schedule, run: null, violations: [] as ViolationRow[] }
+  const { data, error } = await client()
+    .from('violations')
+    .select(
+      'id,rule_code,severity,blocking,message,evidence,resolved_at,resolution_note,employee_id,employees(full_name),schedule_entries(work_date)',
+    )
+    .eq('validation_run_id', run.id)
+    .order('severity', { ascending: true })
+  if (error) throw error
+  return { schedule, run, violations: (data ?? []) as unknown as ViolationRow[] }
+}
+
+// Summary for the Publicações wizard: same schedule/validation data as the dashboard, plus who
+// and which sectors are covered, so the "resumo da publicação" step doesn't lie about scope.
+export async function loadPublicationSummary(storeId: string, weekStart: string) {
+  const summary = await loadValidationSummary(storeId, weekStart)
+  if (!summary) return null
+  const { schedule, run, critical, warnings } = summary
+  const { data: entries, error: entriesError } = await client()
+    .from('schedule_entries')
+    .select('employee_id,day_type,employees(sectors(name))')
+    .eq('schedule_id', schedule.id)
+  if (entriesError) throw entriesError
+  const employeeIds = new Set((entries ?? []).map((entry) => entry.employee_id))
+  const sectorNames = new Set<string>()
+  for (const entry of entries ?? []) {
+    const employeeValue = entry.employees as unknown as
+      | { sectors?: { name?: string } | { name?: string }[] }
+      | { sectors?: { name?: string } | { name?: string }[] }[]
+      | null
+    const employee = Array.isArray(employeeValue) ? employeeValue[0] : employeeValue
+    const sectorValue = employee?.sectors
+    const name = Array.isArray(sectorValue) ? sectorValue[0]?.name : sectorValue?.name
+    if (name) sectorNames.add(name)
+  }
+  return { schedule, people: employeeIds.size, sectors: [...sectorNames], run, critical, warnings }
+}
+
+export async function submitScheduleForApproval(scheduleId: string, expectedRevision: number) {
+  const { data, error } = await client().rpc('submit_schedule_for_approval', {
+    p_schedule_id: scheduleId,
+    p_expected_revision: expectedRevision,
+  })
+  if (error) throw error
+  return data as number
+}
+
+export async function decideScheduleApproval(
+  scheduleId: string,
+  expectedRevision: number,
+  decision: 'approved' | 'rejected',
+  reason?: string,
+) {
+  const { data, error } = await client().rpc('decide_schedule_approval', {
+    p_schedule_id: scheduleId,
+    p_expected_revision: expectedRevision,
+    p_decision: decision,
+    p_reason: reason ?? null,
+  })
+  if (error) throw error
+  return data as number
+}
+
+export async function resolveViolation(violationId: string, note: string) {
+  const { error } = await client().rpc('resolve_violation', { p_violation_id: violationId, p_note: note })
+  if (error) throw error
 }
 
 export async function validateSchedule(scheduleId: string, expectedRevision: number) {
