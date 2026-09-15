@@ -1,7 +1,13 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { ArrowRight, ShieldCheck } from "lucide-react";
-import { requestPasswordReset, signIn, signUp, translateAuthError } from "../lib/marketSyncApi";
+import {
+  requestPasswordReset,
+  resendConfirmationEmail,
+  signIn,
+  signUp,
+  translateAuthError,
+} from "../lib/marketSyncApi";
 
 type Mode = "signin" | "signup" | "reset";
 
@@ -10,17 +16,42 @@ export function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"error" | "info">("error");
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState("");
+  const [resending, setResending] = useState(false);
 
   const switchMode = (next: Mode) => {
     setMode(next);
     setMessage("");
+    setUnconfirmedEmail("");
+  };
+
+  const resendConfirmation = async () => {
+    setResending(true);
+    try {
+      await resendConfirmationEmail(unconfirmedEmail);
+      setMessageTone("info");
+      setMessage("Reenviamos o e-mail de confirmação. Confira sua caixa de entrada.");
+      setUnconfirmedEmail("");
+    } catch (error) {
+      setMessageTone("error");
+      setMessage(error instanceof Error ? translateAuthError(error.message) : "Não foi possível reenviar.");
+    } finally {
+      setResending(false);
+    }
   };
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    setLoading(true);
+    const email = String(form.get("email"));
     setMessage("");
+    setUnconfirmedEmail("");
+    if (mode === "signup" && form.get("password") !== form.get("confirmPassword")) {
+      setMessageTone("error");
+      setMessage("As senhas não coincidem.");
+      return;
+    }
+    setLoading(true);
     try {
       if (mode === "reset") {
         await requestPasswordReset(String(form.get("email")));
@@ -30,15 +61,12 @@ export function AuthScreen() {
       }
       const result =
         mode === "signin"
-          ? await signIn(String(form.get("email")), String(form.get("password")))
-          : await signUp(
-              String(form.get("fullName")),
-              String(form.get("email")),
-              String(form.get("password")),
-            );
+          ? await signIn(email, String(form.get("password")))
+          : await signUp(String(form.get("fullName")), email, String(form.get("password")));
       if (result.error) {
         setMessageTone("error");
         setMessage(translateAuthError(result.error.message));
+        if (result.error.message === "Email not confirmed") setUnconfirmedEmail(email);
       } else if (mode === "signup") {
         setMessageTone("info");
         setMessage("Cadastro criado. Confira seu e-mail para confirmar o acesso.");
@@ -86,7 +114,23 @@ export function AuthScreen() {
               <input required name="password" type="password" minLength={8} placeholder="Mínimo de 8 caracteres" />
             </label>
           )}
+          {mode === "signup" && (
+            <label>
+              Confirmar senha
+              <input required name="confirmPassword" type="password" minLength={8} placeholder="Repita a senha" />
+            </label>
+          )}
           {message && <div className={`auth-message ${messageTone}`}>{message}</div>}
+          {unconfirmedEmail && (
+            <button
+              className="auth-forgot"
+              type="button"
+              disabled={resending}
+              onClick={resendConfirmation}
+            >
+              {resending ? "Reenviando..." : "Reenviar e-mail de confirmação"}
+            </button>
+          )}
           <button disabled={loading} className="solid" type="submit">
             {loading
               ? "Aguarde..."

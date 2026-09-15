@@ -25,6 +25,11 @@ export async function signUp(fullName: string, email: string, password: string) 
   return client().auth.signUp({ email, password, options: { data: { full_name: fullName } } })
 }
 
+export async function resendConfirmationEmail(email: string) {
+  const { error } = await client().auth.resend({ type: 'signup', email })
+  if (error) throw error
+}
+
 export async function requestPasswordReset(email: string) {
   const redirectTo = `${window.location.origin}${import.meta.env.BASE_URL}`
   const { error } = await client().auth.resetPasswordForEmail(email, { redirectTo })
