@@ -704,6 +704,17 @@ main {
   color: #a35b12;
   font-weight: 600;
 }
+.monthly-cell.draggable {
+  cursor: grab;
+}
+.monthly-cell.draggable:active {
+  cursor: grabbing;
+}
+.monthly-move-message {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #167a62;
+}
 .monthly-sunday {
   background: #fdf6ee;
 }

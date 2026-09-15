@@ -2,8 +2,14 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, FileDown } from "lucide-react";
 import { formatMinutes } from "../../lib/compliance";
 import { downloadCsv, toCsv } from "../../lib/csv";
-import { addDays, daysInMonth, monthDates, monthLabel } from "../../lib/dates";
-import { loadMonthSchedule, type ComplianceEntryRow, type SectorRow } from "../../lib/marketSyncApi";
+import { addDays, addDaysToTimestamp, daysInMonth, mondayOf, monthDates, monthLabel } from "../../lib/dates";
+import {
+  loadCanonicalWeek,
+  loadMonthSchedule,
+  saveCanonicalEntry,
+  type ComplianceEntryRow,
+  type SectorRow,
+} from "../../lib/marketSyncApi";
 
 type RosterEntry = { id: string; name: string; sector: string };
 
@@ -42,16 +48,20 @@ export function MonthlyView({
 }) {
   const [entries, setEntries] = useState<ComplianceEntryRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dragSource, setDragSource] = useState<{ employeeId: string; date: string } | null>(null);
+  const [moving, setMoving] = useState(false);
+  const [moveMessage, setMoveMessage] = useState("");
   const days = useMemo(() => monthDates(monthStart), [monthStart]);
 
-  useEffect(() => {
+  const refresh = () => {
     setLoading(true);
     const monthEnd = addDays(monthStart, daysInMonth(monthStart) - 1);
     loadMonthSchedule(storeId, monthStart, monthEnd)
       .then(setEntries)
       .catch(() => setEntries([]))
       .finally(() => setLoading(false));
-  }, [storeId, monthStart]);
+  };
+  useEffect(refresh, [storeId, monthStart]);
 
   const byEmployeeAndDate = useMemo(() => {
     const map = new Map<string, Map<string, ComplianceEntryRow>>();
@@ -75,6 +85,72 @@ export function MonthlyView({
     }
     return totals;
   }, [entries]);
+
+  // Drag-and-drop is deliberately narrow: same employee, same calendar week only (so it always
+  // maps to a single schedules row/revision — no cross-week revision juggling), and never
+  // overwrites a day that already has a work shift. Anything wider always re-opens the week
+  // editor's normal validated flow instead.
+  const handleDrop = async (employeeId: string, targetDate: string) => {
+    const source = dragSource;
+    setDragSource(null);
+    if (!source || source.employeeId !== employeeId || source.date === targetDate) return;
+    setMoveMessage("");
+    if (mondayOf(source.date) !== mondayOf(targetDate)) {
+      setMoveMessage("Só é possível mover um turno dentro da mesma semana.");
+      return;
+    }
+    const existingTarget = byEmployeeAndDate.get(employeeId)?.get(targetDate);
+    if (existingTarget && existingTarget.day_type !== "off") {
+      setMoveMessage(
+        existingTarget.day_type === "work"
+          ? "Esse dia já tem um turno — mova ou apague-o primeiro."
+          : `Esse dia está marcado como ${dayTypeLabel[existingTarget.day_type] ?? existingTarget.day_type} — não é possível soltar um turno nele.`,
+      );
+      return;
+    }
+    setMoving(true);
+    try {
+      const week = await loadCanonicalWeek(storeId, mondayOf(source.date));
+      const sourceEntry = week?.entries.find(
+        (entry) => entry.employee_id === employeeId && entry.work_date === source.date,
+      );
+      if (!week || !sourceEntry || sourceEntry.day_type !== "work" || !sourceEntry.shift_segments?.length) {
+        setMoveMessage("O turno de origem mudou nesse meio-tempo — atualize e tente de novo.");
+        return;
+      }
+      const deltaDays = Math.round(
+        (new Date(`${targetDate}T12:00:00Z`).getTime() - new Date(`${source.date}T12:00:00Z`).getTime()) / 86400000,
+      );
+      const segments = [...sourceEntry.shift_segments]
+        .sort((a, b) => a.sequence - b.sequence)
+        .map((segment) => ({
+          startsAt: addDaysToTimestamp(segment.starts_at, deltaDays),
+          endsAt: addDaysToTimestamp(segment.ends_at, deltaDays),
+        }));
+      const revisionAfterMove = await saveCanonicalEntry({
+        scheduleId: week.schedule.id,
+        employeeId,
+        workDate: targetDate,
+        dayType: "work",
+        segments,
+        expectedRevision: week.schedule.revision,
+      });
+      await saveCanonicalEntry({
+        scheduleId: week.schedule.id,
+        employeeId,
+        workDate: source.date,
+        dayType: "off",
+        segments: [],
+        expectedRevision: revisionAfterMove,
+      });
+      setMoveMessage("Turno movido.");
+      refresh();
+    } catch {
+      setMoveMessage("Não foi possível mover o turno. Abra a semana para editar manualmente.");
+    } finally {
+      setMoving(false);
+    }
+  };
 
   const exportHoursCsv = () => {
     const rows = employeeRoster
@@ -150,11 +226,21 @@ export function MonthlyView({
                         {days.map((day) => {
                           const entry = byEmployeeAndDate.get(employee.id)?.get(day.iso);
                           const summary = entry ? shiftSummary(entry) : null;
+                          const draggableCell = summary?.tone === "work" && !moving;
                           return (
                             <td
                               key={day.iso}
-                              className={`monthly-cell ${summary?.tone ?? ""} ${day.weekday === "Dom" ? "monthly-sunday" : ""}`}
+                              className={`monthly-cell ${summary?.tone ?? ""} ${day.weekday === "Dom" ? "monthly-sunday" : ""} ${draggableCell ? "draggable" : ""}`}
                               onClick={() => onSelectDay(day.iso)}
+                              draggable={draggableCell}
+                              onDragStart={() => setDragSource({ employeeId: employee.id, date: day.iso })}
+                              onDragOver={(event) => {
+                                if (dragSource?.employeeId === employee.id) event.preventDefault();
+                              }}
+                              onDrop={(event) => {
+                                event.preventDefault();
+                                handleDrop(employee.id, day.iso);
+                              }}
                             >
                               {summary?.text ?? ""}
                             </td>
@@ -175,7 +261,12 @@ export function MonthlyView({
           </table>
         </div>
       )}
-      <p className="monthly-hint">Clique num dia para abrir a semana correspondente e editar.</p>
+      <p className="monthly-hint">
+        Clique num dia para abrir a semana correspondente e editar · arraste um turno para outro
+        dia da mesma semana para movê-lo.
+        {moving ? " Movendo..." : ""}
+      </p>
+      {moveMessage && <p className="monthly-move-message">{moveMessage}</p>}
       {!loading && minutesByEmployee.size > 0 && (
         <div className="monthly-hours-report">
           <h3>Total de horas no mês</h3>
