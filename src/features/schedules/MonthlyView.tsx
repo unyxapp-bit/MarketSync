@@ -1,5 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileDown } from "lucide-react";
+import { formatMinutes } from "../../lib/compliance";
+import { downloadCsv, toCsv } from "../../lib/csv";
 import { addDays, daysInMonth, monthDates, monthLabel } from "../../lib/dates";
 import { loadMonthSchedule, type ComplianceEntryRow, type SectorRow } from "../../lib/marketSyncApi";
 
@@ -61,6 +63,31 @@ export function MonthlyView({
     return map;
   }, [entries]);
 
+  const minutesByEmployee = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const entry of entries) {
+      if (entry.day_type !== "work") continue;
+      const minutes = (entry.shift_segments ?? []).reduce(
+        (sum, segment) => sum + (new Date(segment.ends_at).getTime() - new Date(segment.starts_at).getTime()) / 60000,
+        0,
+      );
+      totals.set(entry.employee_id, (totals.get(entry.employee_id) ?? 0) + minutes);
+    }
+    return totals;
+  }, [entries]);
+
+  const exportHoursCsv = () => {
+    const rows = employeeRoster
+      .filter((employee) => (minutesByEmployee.get(employee.id) ?? 0) > 0)
+      .map((employee) => [
+        employee.name,
+        employee.sector,
+        formatMinutes(Math.round(minutesByEmployee.get(employee.id) ?? 0)),
+      ]);
+    const csv = toCsv(["colaborador", "setor", "horas_no_mes"], rows);
+    downloadCsv(`horas_${monthStart.slice(0, 7)}.csv`, csv);
+  };
+
   const colorBySector = useMemo(
     () => new Map(sectorList.map((sector) => [sector.name, sector.color])),
     [sectorList],
@@ -81,6 +108,10 @@ export function MonthlyView({
         <strong>{monthLabel(monthStart)}</strong>
         <button className="arrow" type="button" aria-label="Próximo mês" onClick={() => onChangeMonth(1)}>
           <ChevronRight size={18} />
+        </button>
+        <button className="outline monthly-export" type="button" onClick={exportHoursCsv} disabled={loading}>
+          <FileDown size={15} />
+          Exportar horas do mês (CSV)
         </button>
       </div>
       {loading ? (
@@ -145,6 +176,22 @@ export function MonthlyView({
         </div>
       )}
       <p className="monthly-hint">Clique num dia para abrir a semana correspondente e editar.</p>
+      {!loading && minutesByEmployee.size > 0 && (
+        <div className="monthly-hours-report">
+          <h3>Total de horas no mês</h3>
+          <div className="monthly-hours-list">
+            {employeeRoster
+              .filter((employee) => (minutesByEmployee.get(employee.id) ?? 0) > 0)
+              .sort((a, b) => (minutesByEmployee.get(b.id) ?? 0) - (minutesByEmployee.get(a.id) ?? 0))
+              .map((employee) => (
+                <div className="monthly-hours-row" key={employee.id}>
+                  <span>{employee.name}</span>
+                  <strong>{formatMinutes(Math.round(minutesByEmployee.get(employee.id) ?? 0))}</strong>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
