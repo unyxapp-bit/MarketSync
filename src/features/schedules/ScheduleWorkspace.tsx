@@ -6,6 +6,7 @@ import {
   ChevronRight,
   CircleAlert,
   Clock3,
+  Download,
   FileDown,
   Pencil,
   Search,
@@ -444,6 +445,40 @@ export function ScheduleWorkspace() {
     );
     downloadCsv(`escala_${weekStart}.csv`, csv);
   };
+  const shiftLabel = (shift: Shift | null) =>
+    shift ? `${shift.start}–${shift.breakStart} / ${shift.breakEnd}–${shift.end}` : "Folga";
+  const exportPdf = async () => {
+    const { buildSchedulePdf } = await import("../../lib/pdf");
+    const sectors = (["Caixa", "Fiscal"] as const)
+      .map((sector) => ({
+        name: sector,
+        rows: scheduleEmployees
+          .filter((employee) => employee.sector === sector)
+          .map((employee) => ({
+            name: employee.name,
+            cells: dates.map((_, index) => shiftLabel(employee.schedule[index])),
+          })),
+      }))
+      .filter((sector) => sector.rows.length > 0);
+    buildSchedulePdf({
+      storeName: store?.name ?? "Loja",
+      periodLabel: weekRangeLabel(weekStart),
+      revision: weekRevision,
+      dayLabels: dates.map((day) => `${day.weekday} ${day.date}`),
+      sectors,
+      fileName: `mural_${weekStart}.pdf`,
+    });
+  };
+  const exportIndividualPdf = async (employee: Employee) => {
+    const { buildIndividualSchedulePdf } = await import("../../lib/pdf");
+    buildIndividualSchedulePdf({
+      storeName: store?.name ?? "Loja",
+      employeeName: employee.name,
+      periodLabel: weekRangeLabel(weekStart),
+      days: dates.map((day, index) => ({ label: day.label, shift: shiftLabel(employee.schedule[index]) })),
+      fileName: `escala_${employee.name.replace(/\s+/g, "_")}_${weekStart}.pdf`,
+    });
+  };
   return (
     <>
       <section className="hero">
@@ -529,6 +564,10 @@ export function ScheduleWorkspace() {
           <button className="outline" onClick={exportCsv} disabled={!weekId}>
             <FileDown size={16} />
             Exportar CSV
+          </button>
+          <button className="outline" onClick={exportPdf} disabled={!weekId}>
+            <FileDown size={16} />
+            Exportar PDF
           </button>
           <Link
             className={`solid button-link ${validationState !== "passed" || blocked > 0 ? "disabled" : ""}`}
@@ -723,6 +762,15 @@ export function ScheduleWorkspace() {
                         aria-label={`Editar turno de ${employee.name}`}
                       >
                         <Pencil size={13} />
+                      </button>
+                      <button
+                        className="edit-shift"
+                        type="button"
+                        onClick={() => exportIndividualPdf(employee)}
+                        aria-label={`Exportar PDF individual de ${employee.name}`}
+                        title="Exportar PDF individual"
+                      >
+                        <Download size={13} />
                       </button>
                     </div>
                     {shift ? (
