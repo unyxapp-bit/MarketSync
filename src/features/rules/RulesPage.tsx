@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { ShieldCheck } from "lucide-react";
+import type { FormEvent } from "react";
+import { CalendarPlus, ShieldCheck, Trash2 } from "lucide-react";
 import {
+  addHoliday,
   createRuleSetRevision,
+  deleteHoliday,
+  loadHolidays,
   loadRuleSets,
+  type HolidayRow,
   type RuleRow,
   type RuleSetRow,
 } from "../../lib/marketSyncApi";
@@ -38,6 +43,9 @@ export function RulesPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"error" | "saving">("saving");
+  const [holidays, setHolidays] = useState<HolidayRow[]>([]);
+  const [holidayMessage, setHolidayMessage] = useState("");
+  const [savingHoliday, setSavingHoliday] = useState(false);
 
   const refresh = useCallback(() => {
     if (!store) return;
@@ -55,7 +63,43 @@ export function RulesPage() {
       .finally(() => setLoading(false));
   }, [store]);
 
+  const refreshHolidays = useCallback(() => {
+    if (!store) return;
+    loadHolidays(store.organizationId).then(setHolidays).catch(() => setHolidays([]));
+  }, [store]);
+
   useEffect(refresh, [refresh]);
+  useEffect(refreshHolidays, [refreshHolidays]);
+
+  const submitHoliday = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!store) return;
+    const data = new FormData(event.currentTarget);
+    setSavingHoliday(true);
+    setHolidayMessage("");
+    try {
+      await addHoliday(store.organizationId, String(data.get("date")), String(data.get("name")));
+      event.currentTarget.reset();
+      refreshHolidays();
+    } catch (error) {
+      setHolidayMessage(
+        error instanceof Error && error.message.includes("owner")
+          ? "Apenas o administrador ou RH/DP pode gerenciar o calendário de feriados."
+          : "Não foi possível salvar o feriado.",
+      );
+    } finally {
+      setSavingHoliday(false);
+    }
+  };
+
+  const removeHoliday = async (holidayId: string) => {
+    try {
+      await deleteHoliday(holidayId);
+      refreshHolidays();
+    } catch {
+      setHolidayMessage("Não foi possível remover o feriado.");
+    }
+  };
 
   if (!store) return null;
 
@@ -175,6 +219,52 @@ export function RulesPage() {
           </section>
         </>
       )}
+
+      <section className="publication-card rules-revision">
+        <h2>Calendário de feriados</h2>
+        <p className="publication-hint">
+          Datas cadastradas aqui alimentam a regra HOLIDAY_AUTHORIZATION: um turno agendado num
+          feriado sem autorização marcada na escala gera um alerta de conformidade.
+        </p>
+        <form className="rules-revision-form" onSubmit={submitHoliday}>
+          <label>
+            Data
+            <input required name="date" type="date" />
+          </label>
+          <label>
+            Nome do feriado
+            <input required name="name" type="text" placeholder="Ex.: Dia do Comerciário" />
+          </label>
+          <button className="solid" disabled={savingHoliday} type="submit">
+            <CalendarPlus size={16} />
+            {savingHoliday ? "Salvando..." : "Adicionar feriado"}
+          </button>
+        </form>
+        {holidayMessage && <p className="editor-message error">{holidayMessage}</p>}
+        {holidays.length > 0 && (
+          <div className="audit-card">
+            <div className="audit-head rules-history-head">
+              <span>Data</span>
+              <span>Feriado</span>
+              <span></span>
+            </div>
+            {holidays.map((holiday) => (
+              <div className="audit-row rules-history-row" key={holiday.id}>
+                <strong>{holiday.date}</strong>
+                <span>{holiday.name}</span>
+                <button
+                  className="outline"
+                  type="button"
+                  aria-label={`Remover ${holiday.name}`}
+                  onClick={() => removeHoliday(holiday.id)}
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {!loading && ruleSets.length > 1 && (
         <section className="publication-card rules-history">

@@ -28,10 +28,12 @@ import {
   importReceivedWeek,
   loadCanonicalWeek,
   loadComplianceContext,
+  loadHolidays,
   loadRuleParametersForWeek,
   saveCanonicalEntry,
   validateSchedule,
   type ComplianceEntryRow,
+  type HolidayRow,
 } from "../../lib/marketSyncApi";
 import { useStore } from "../../shared/StoreContext";
 
@@ -85,6 +87,7 @@ type EditDraft = {
   breakStart: string;
   breakEnd: string;
   end: string;
+  holidayAuthorized: boolean;
 };
 type ValidationIssue = {
   employee_id?: string;
@@ -131,6 +134,15 @@ export function ScheduleWorkspace() {
   const [weekRevision, setWeekRevision] = useState<number | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [ruleParameters, setRuleParameters] = useState<Record<string, Record<string, number>>>({});
+  const [holidays, setHolidays] = useState<HolidayRow[]>([]);
+  const [holidayAuthorizedByEmployeeDay, setHolidayAuthorizedByEmployeeDay] = useState<
+    Map<string, Set<string>>
+  >(new Map());
+  const holidayByIso = useMemo(
+    () => new Map(holidays.map((holiday) => [holiday.date, holiday.name])),
+    [holidays],
+  );
+  const isHoliday = (iso: string) => holidayByIso.has(iso);
   const goToWeek = (nextWeekStart: string) => {
     setWeekStart(nextWeekStart);
     setSelectedDay(0);
@@ -165,6 +177,12 @@ export function ScheduleWorkspace() {
       .catch(() => setImportState("error"));
   }, [store]);
   useEffect(() => {
+    if (!store) return;
+    loadHolidays(store.organizationId)
+      .then(setHolidays)
+      .catch(() => setHolidays([]));
+  }, [store]);
+  useEffect(() => {
     if (!store || employeeRoster.length === 0) return;
     setImportState((current) => (current === "idle" ? "loading" : current));
     Promise.all([
@@ -186,6 +204,7 @@ export function ScheduleWorkspace() {
             schedule: Array(7).fill(null),
           });
         }
+        const authorizedByEmployee = new Map<string, Set<string>>();
         record?.entries.forEach((entry) => {
           const dayIndex = isoToDay.get(entry.work_date);
           const existing = byEmployee.get(entry.employee_id);
@@ -200,9 +219,15 @@ export function ScheduleWorkspace() {
               breakEnd: segments[1].starts_at.slice(11, 16),
               end: segments[1].ends_at.slice(11, 16),
             };
+          if (entry.holiday_authorized) {
+            const set = authorizedByEmployee.get(entry.employee_id) ?? new Set<string>();
+            set.add(entry.work_date);
+            authorizedByEmployee.set(entry.employee_id, set);
+          }
         });
         setScheduleEmployees([...byEmployee.values()]);
         setEmployeeIds(ids);
+        setHolidayAuthorizedByEmployeeDay(authorizedByEmployee);
         setWeekId(record?.schedule.id ?? null);
         setWeekRevision(record?.schedule.revision ?? null);
         setImportState(record ? "done" : "idle");
@@ -337,6 +362,7 @@ export function ScheduleWorkspace() {
     }
     setEditMessage("");
     setEditState("idle");
+    const currentIso = dates[selectedDay].iso;
     setEditDraft({
       employee,
       employeeId,
@@ -346,6 +372,7 @@ export function ScheduleWorkspace() {
       breakStart: shift?.breakStart ?? "12:20",
       breakEnd: shift?.breakEnd ?? "14:20",
       end: shift?.end ?? "17:40",
+      holidayAuthorized: holidayAuthorizedByEmployeeDay.get(employeeId)?.has(currentIso) ?? false,
     });
   };
   const saveEdit = async () => {
@@ -385,6 +412,15 @@ export function ScheduleWorkspace() {
         dayType: editDraft.isOff ? "off" : "work",
         segments,
         expectedRevision: weekRevision,
+        holidayAuthorized: editDraft.isOff ? false : editDraft.holidayAuthorized,
+      });
+      setHolidayAuthorizedByEmployeeDay((current) => {
+        const next = new Map(current);
+        const set = new Set(next.get(editDraft.employeeId));
+        if (!editDraft.isOff && editDraft.holidayAuthorized) set.add(workDate);
+        else set.delete(workDate);
+        next.set(editDraft.employeeId, set);
+        return next;
       });
       setScheduleEmployees((current) =>
         current.map((employee) =>
@@ -597,7 +633,7 @@ export function ScheduleWorkspace() {
         {dates.map((day, index) => (
           <button
             key={day.iso}
-            className={`day ${selectedDay === index ? "active" : ""}`}
+            className={`day ${selectedDay === index ? "active" : ""} ${isHoliday(day.iso) ? "is-holiday" : ""}`}
             onClick={() => setSelectedDay(index)}
           >
             <span>{day.weekday}</span>
@@ -618,6 +654,9 @@ export function ScheduleWorkspace() {
             <CalendarDays size={15} />
             {dates[selectedDay].label}
           </div>
+          {isHoliday(dates[selectedDay].iso) && (
+            <span className="holiday-badge">Feriado · {holidayByIso.get(dates[selectedDay].iso)}</span>
+          )}
           <h2>Turnos e conformidade</h2>
         </div>
         <label className="search">
@@ -949,6 +988,21 @@ export function ScheduleWorkspace() {
               />{" "}
               Folga neste dia
             </label>
+            {!editDraft.isOff && isHoliday(dates[editDraft.day].iso) && (
+              <label className="editor-off">
+                <input
+                  type="checkbox"
+                  checked={editDraft.holidayAuthorized}
+                  onChange={(event) =>
+                    setEditDraft({
+                      ...editDraft,
+                      holidayAuthorized: event.target.checked,
+                    })
+                  }
+                />{" "}
+                Turno autorizado no feriado ({holidayByIso.get(dates[editDraft.day].iso)})
+              </label>
+            )}
             {!editDraft.isOff && (
               <div className="editor-times">
                 <label>

@@ -21,7 +21,7 @@ function App() {
   const [loadingSession, setLoadingSession] = useState(Boolean(supabase));
   const [hasStore, setHasStore] = useState<boolean | null>(null);
   const [store, setStore] = useState<
-    { id: string; name: string } | undefined
+    { id: string; name: string; organizationId: string } | undefined
   >();
 
   useEffect(() => {
@@ -48,7 +48,9 @@ function App() {
       .then((stores) => {
         setHasStore(stores.length > 0);
         setStore(
-          stores[0] ? { id: stores[0].id, name: stores[0].name } : undefined,
+          stores[0]
+            ? { id: stores[0].id, name: stores[0].name, organizationId: stores[0].organization_id }
+            : undefined,
         );
       })
       .catch(() => setHasStore(false));

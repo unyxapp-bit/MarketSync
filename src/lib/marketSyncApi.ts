@@ -32,7 +32,7 @@ export async function createFirstStore(organizationName: string, storeName: stri
 }
 
 export async function getMyStores() {
-  const { data, error } = await client().from('stores').select('id,name,city,state').order('name')
+  const { data, error } = await client().from('stores').select('id,name,city,state,organization_id').order('name')
   if (error) throw error
   return data
 }
@@ -147,7 +147,7 @@ export async function loadCanonicalWeek(storeId: string, weekStart: string) {
   const { data: schedule, error: scheduleError } = await api.from('schedules').select('id,status,revision,week_start').eq('store_id', storeId).eq('week_start', weekStart).maybeSingle()
   if (scheduleError) throw scheduleError
   if (!schedule) return null
-  const { data: entries, error: entriesError } = await api.from('schedule_entries').select('id,employee_id,work_date,day_type,employees(full_name,sector_id,sectors(name)),shift_segments(sequence,starts_at,ends_at)').eq('schedule_id', schedule.id)
+  const { data: entries, error: entriesError } = await api.from('schedule_entries').select('id,employee_id,work_date,day_type,holiday_authorized,employees(full_name,sector_id,sectors(name)),shift_segments(sequence,starts_at,ends_at)').eq('schedule_id', schedule.id)
   if (entriesError) throw entriesError
   return { schedule, entries: entries ?? [] }
 }
@@ -313,6 +313,7 @@ export async function saveCanonicalEntry(input: {
   segments: Array<{ startsAt: string; endsAt: string }>
   expectedRevision: number
   note?: string
+  holidayAuthorized?: boolean
 }) {
   const { data, error } = await client().rpc('save_canonical_entry', {
     p_schedule_id: input.scheduleId,
@@ -322,9 +323,32 @@ export async function saveCanonicalEntry(input: {
     p_segments: input.segments,
     p_expected_revision: input.expectedRevision,
     p_note: input.note ?? null,
+    p_holiday_authorized: input.holidayAuthorized ?? false,
   })
   if (error) throw error
   return data as number
+}
+
+export type HolidayRow = { id: string; date: string; name: string }
+
+export async function loadHolidays(organizationId: string) {
+  const { data, error } = await client()
+    .from('holidays')
+    .select('id,date,name')
+    .eq('organization_id', organizationId)
+    .order('date')
+  if (error) throw error
+  return (data ?? []) as HolidayRow[]
+}
+
+export async function addHoliday(organizationId: string, date: string, name: string) {
+  const { error } = await client().rpc('add_holiday', { p_organization_id: organizationId, p_date: date, p_name: name })
+  if (error) throw error
+}
+
+export async function deleteHoliday(holidayId: string) {
+  const { error } = await client().rpc('delete_holiday', { p_holiday_id: holidayId })
+  if (error) throw error
 }
 
 export async function getStoreTeam(storeId: string) {
@@ -642,5 +666,22 @@ export async function addEmployeeConstraint(
 
 export async function deleteEmployeeConstraint(constraintId: string) {
   const { error } = await client().rpc('delete_employee_constraint', { p_constraint_id: constraintId })
+  if (error) throw error
+}
+
+export async function updateStoreMember(input: {
+  storeId: string
+  userId: string
+  role: 'owner' | 'manager' | 'supervisor' | 'employee' | 'rh' | 'auditor'
+  sectorIds: string[]
+  canEdit: boolean
+}) {
+  const { error } = await client().rpc('update_store_member', {
+    p_store_id: input.storeId,
+    p_user_id: input.userId,
+    p_role: input.role,
+    p_sector_ids: input.sectorIds,
+    p_can_edit: input.canEdit,
+  })
   if (error) throw error
 }

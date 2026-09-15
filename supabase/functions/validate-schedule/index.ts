@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 type S = { starts_at:string; ends_at:string }
-type E = { id:string; employee_id:string; work_date:string; day_type:string; shift_segments:S[]; employees:{full_name:string}|null }
+type E = { id:string; employee_id:string; work_date:string; day_type:string; holiday_authorized:boolean; shift_segments:S[]; employees:{full_name:string}|null }
 type R = { code:string; severity:'info'|'warning'|'critical'; blocking:boolean; parameters:Record<string,unknown> }
 type C = { employee_id:string; start_at:string; end_at:string|null; type:string }
 const ms=(x:string)=>new Date(x).getTime(), order=(s:S[])=>[...s].sort((a,b)=>ms(a.starts_at)-ms(b.starts_at))
@@ -16,11 +16,12 @@ Deno.serve(async request => {
   const {data:{user}}=await caller.auth.getUser(); if(!user)return Response.json({error:'Unauthorized'},{status:401})
   const {scheduleId,expectedRevision}=await request.json() as {scheduleId:string;expectedRevision:number}
   const admin=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-  const {data:schedule,error:scheduleError}=await admin.from('schedules').select('id,store_id,week_start,revision,rule_set_id').eq('id',scheduleId).single()
+  const {data:schedule,error:scheduleError}=await admin.from('schedules').select('id,store_id,week_start,revision,rule_set_id,stores(organization_id)').eq('id',scheduleId).single()
   if(scheduleError||!schedule)return Response.json({error:'Schedule not found'},{status:404})
+  const organizationId=(schedule.stores as unknown as {organization_id:string}|null)?.organization_id
   const {data:member}=await admin.from('store_memberships').select('role').eq('store_id',schedule.store_id).eq('user_id',user.id).in('role',['owner','manager','supervisor']).maybeSingle()
   if(!member)return Response.json({error:'Forbidden'},{status:403}); if(schedule.revision!==expectedRevision)return Response.json({error:'REVISION_CONFLICT',currentRevision:schedule.revision},{status:409})
-  const select='id,employee_id,work_date,day_type,shift_segments(starts_at,ends_at),employees(full_name)'
+  const select='id,employee_id,work_date,day_type,holiday_authorized,shift_segments(starts_at,ends_at),employees(full_name)'
   const {data:now,error:nowError}=await admin.from('schedule_entries').select(select).eq('schedule_id',scheduleId); if(nowError)return Response.json({error:nowError.message},{status:400})
   const current=(now??[]) as E[], employeeIds=[...new Set(current.map(e=>e.employee_id))], start=day(schedule.week_start,-21), end=day(schedule.week_start,13)
   const {data:past,error:pastError}=employeeIds.length?await admin.from('schedule_entries').select(select).in('employee_id',employeeIds).gte('work_date',start).lte('work_date',end):{data:[],error:null}
@@ -42,6 +43,14 @@ Deno.serve(async request => {
   const dailyMax=map.get('DAILY_MINUTES')
   const weeklyMax=map.get('WEEKLY_MINUTES')
   const unavailable=map.get('EMPLOYEE_UNAVAILABLE')
+  const coverage=map.get('SECTOR_COVERAGE')
+  const holidayRule=map.get('HOLIDAY_AUTHORIZATION')
+  const {data:employeeRows}=employeeIds.length?await admin.from('employees').select('id,sector_id').in('id',employeeIds):{data:[]}
+  const sectorIdByEmployee=new Map((employeeRows??[]).map(e=>[e.id,e.sector_id]))
+  const {data:sectorRows}=coverage?await admin.from('sectors').select('id,name').eq('store_id',schedule.store_id):{data:[]}
+  const sectorNameById=new Map((sectorRows??[]).map(s=>[s.id,s.name]))
+  const {data:holidayRows}=holidayRule&&organizationId?await admin.from('holidays').select('date,name').eq('organization_id',organizationId).gte('date',schedule.week_start).lt('date',weekEnd):{data:[]}
+  const holidayNameByDate=new Map((holidayRows??[]).map(h=>[h.date,h.name]))
   const violations:Array<Record<string,unknown>>=[], currentIds=new Set(current.map(e=>e.id)), byEmployee=new Map<string,E[]>()
   for(const e of entries)byEmployee.set(e.employee_id,[...(byEmployee.get(e.employee_id)??[]),e])
   for(const [employeeId,all] of byEmployee){
@@ -57,6 +66,23 @@ Deno.serve(async request => {
     if(weeklyMax){const weekEntries=current.filter(x=>x.employee_id===employeeId&&x.work_date>=schedule.week_start&&x.work_date<weekEnd&&work(x));if(weekEntries.length){const total=Math.round(weekEntries.reduce((sum,e)=>sum+workedMinutes(e),0)),contracted=weeklyMinutesByEmployee.get(employeeId)??Number(weeklyMax.parameters.default_weekly_minutes??2640),tolerance=Number(weeklyMax.parameters.tolerance_minutes??0),maximum=contracted+tolerance;if(total>maximum)violations.push({employee_id:employeeId,entry_id:weekEntries[weekEntries.length-1].id,rule_code:weeklyMax.code,severity:weeklyMax.severity,blocking:weeklyMax.blocking,evidence:{worked_minutes:total,contracted_minutes:contracted,tolerance_minutes:tolerance},message:`Carga semanal de ${total} minutos acima do contrato (${contracted} + ${tolerance} de tolerância).`})}}
     // Indisponibilidade: turno agendado sobre uma restrição ativa do colaborador.
     if(unavailable){const own=constraints.filter(c=>c.employee_id===employeeId);if(own.length)for(const e of current.filter(x=>x.employee_id===employeeId&&work(x))){const segments=order(e.shift_segments??[]);for(const c of own){const constraintEnd=c.end_at?ms(c.end_at):Infinity;if(segments.some(s=>ms(s.starts_at)<constraintEnd&&ms(s.ends_at)>ms(c.start_at))){violations.push({employee_id:employeeId,entry_id:e.id,rule_code:unavailable.code,severity:unavailable.severity,blocking:unavailable.blocking,evidence:{constraint_type:c.type,constraint_start:c.start_at,constraint_end:c.end_at},message:`Turno agendado durante uma restrição de disponibilidade (${c.type}).`});break}}}}
+  }
+  // Cobertura mínima por setor: conta, por dia da semana exibida, quantas pessoas de cada setor estão trabalhando.
+  if(coverage)for(let d=schedule.week_start;d<weekEnd;d=day(d,1)){
+    const workingBySector=new Map<string,number>()
+    for(const e of current.filter(x=>x.work_date===d&&work(x))){
+      const sectorName=sectorNameById.get(sectorIdByEmployee.get(e.employee_id)??'')
+      if(sectorName)workingBySector.set(sectorName,(workingBySector.get(sectorName)??0)+1)
+    }
+    for(const [sectorName,minimumRaw] of Object.entries(coverage.parameters)){
+      const minimum=Number(minimumRaw),actual=workingBySector.get(sectorName)??0
+      if(actual<minimum)violations.push({employee_id:null,entry_id:null,rule_code:coverage.code,severity:coverage.severity,blocking:coverage.blocking,evidence:{sector:sectorName,date:d,scheduled:actual,minimum_required:minimum},message:`Setor ${sectorName} com ${actual} pessoa(s) escalada(s) em ${d}; mínimo configurado de ${minimum}.`})
+    }
+  }
+  // Feriado: turno agendado em data de feriado sem autorização registrada.
+  if(holidayRule)for(const e of current.filter(x=>work(x))){
+    const holidayName=holidayNameByDate.get(e.work_date)
+    if(holidayName&&!e.holiday_authorized)violations.push({employee_id:e.employee_id,entry_id:e.id,rule_code:holidayRule.code,severity:holidayRule.severity,blocking:holidayRule.blocking,evidence:{holiday:holidayName,date:e.work_date},message:`Turno em feriado (${holidayName}) sem autorização registrada.`})
   }
   const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({current,entries,rules:rawRules??[]}))),checksum=Array.from(new Uint8Array(bytes)).map(b=>b.toString(16).padStart(2,'0')).join(''),blocking=violations.filter(v=>v.blocking).length
   const {data:run,error:runError}=await admin.from('validation_runs').insert({schedule_id:scheduleId,schedule_revision:schedule.revision,rule_set_id:schedule.rule_set_id,status:blocking?'failed':'passed',checksum,started_at:new Date().toISOString(),completed_at:new Date().toISOString()}).select('id').single();if(runError||!run)return Response.json({error:runError?.message??'Could not record validation'},{status:400})

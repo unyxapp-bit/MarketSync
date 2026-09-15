@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
 
-export type CurrentStore = { id: string; name: string }
+export type CurrentStore = { id: string; name: string; organizationId: string }
 
 const StoreContext = createContext<CurrentStore | undefined>(undefined)
 
