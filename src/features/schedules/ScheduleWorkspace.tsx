@@ -21,6 +21,7 @@ import {
   restMinutes,
 } from "../../lib/compliance";
 import { addDays, mondayOf, todayIso, weekDates, weekRangeLabel, weekdayShort } from "../../lib/dates";
+import { downloadCsv, toCsv } from "../../lib/csv";
 import {
   getStoreEmployees,
   importReceivedWeek,
@@ -420,6 +421,29 @@ export function ScheduleWorkspace() {
       );
     }
   };
+  const exportCsv = () => {
+    const rows = scheduleEmployees.flatMap((employee) =>
+      dates.map((day, index) => {
+        const shift = employee.schedule[index];
+        return [
+          employee.name,
+          employee.sector,
+          day.iso,
+          shift ? "work" : "off",
+          shift?.start ?? "",
+          shift?.breakStart ?? "",
+          shift?.breakEnd ?? "",
+          shift?.end ?? "",
+          shift ? formatMinutes(dailyMinutes(shift)) : "0h00",
+        ];
+      }),
+    );
+    const csv = toCsv(
+      ["colaborador", "setor", "data", "status", "entrada", "intervalo_inicio", "intervalo_fim", "saida", "carga"],
+      rows,
+    );
+    downloadCsv(`escala_${weekStart}.csv`, csv);
+  };
   return (
     <>
       <section className="hero">
@@ -501,6 +525,10 @@ export function ScheduleWorkspace() {
           <button className="outline" onClick={() => window.print()}>
             <FileDown size={16} />
             Imprimir mural
+          </button>
+          <button className="outline" onClick={exportCsv} disabled={!weekId}>
+            <FileDown size={16} />
+            Exportar CSV
           </button>
           <Link
             className={`solid button-link ${validationState !== "passed" || blocked > 0 ? "disabled" : ""}`}

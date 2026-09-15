@@ -1732,6 +1732,22 @@ footer span:last-child {
   display: flex;
   gap: 6px;
 }
+.conflict-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.conflict-toolbar-actions button {
+  height: 37px;
+  padding: 0 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
 .filter-pill {
   border: 1px solid #dce3e8;
   background: #fff;

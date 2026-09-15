@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Check, Search, ShieldCheck } from "lucide-react";
+import { Check, FileDown, Search, ShieldCheck } from "lucide-react";
 import {
   loadViolationsForWeek,
   resolveViolation,
   type ViolationRow,
 } from "../../lib/marketSyncApi";
 import { mondayOf, todayIso, weekRangeLabel } from "../../lib/dates";
+import { downloadCsv, toCsv } from "../../lib/csv";
 import { useStore } from "../../shared/StoreContext";
 
 type Filter = "all" | "critical" | "warning" | "resolved";
@@ -79,6 +80,28 @@ export function ConflictsPage() {
     }
     return true;
   });
+
+  const exportCsv = () => {
+    const rows = filtered.map((violation) => {
+      const employee = firstOf(violation.employees);
+      const entry = firstOf(violation.schedule_entries);
+      return [
+        employee?.full_name ?? "",
+        entry?.work_date ?? "",
+        violation.rule_code,
+        severityLabel[violation.severity],
+        violation.blocking ? "sim" : "não",
+        violation.message,
+        violation.resolved_at ? "resolvido" : "em aberto",
+        violation.resolution_note ?? "",
+      ];
+    });
+    const csv = toCsv(
+      ["colaborador", "data", "regra", "gravidade", "bloqueia", "detalhe", "estado", "justificativa"],
+      rows,
+    );
+    downloadCsv(`conflitos_${weekStart}.csv`, csv);
+  };
 
   const startAccept = (violationId: string) => {
     setAcceptingId(violationId);
@@ -162,14 +185,20 @@ export function ConflictsPage() {
                 </button>
               ))}
             </div>
-            <label className="search">
-              <Search size={16} />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar colaborador"
-              />
-            </label>
+            <div className="conflict-toolbar-actions">
+              <label className="search">
+                <Search size={16} />
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Buscar colaborador"
+                />
+              </label>
+              <button className="outline" type="button" onClick={exportCsv}>
+                <FileDown size={16} />
+                Exportar CSV
+              </button>
+            </div>
           </section>
           <section className="conflict-card">
             {filtered.length === 0 && (
