@@ -5,7 +5,7 @@ import { saveEmployee } from "../../lib/marketSyncApi";
 
 type Sector = { id: string; name: string };
 
-type FieldKey = "fullName" | "jobTitle" | "sectorName" | "registration" | "weeklyHours";
+type FieldKey = "fullName" | "jobTitle" | "sectorName" | "registration" | "weeklyHours" | "sex";
 
 const fields: Array<{ key: FieldKey; label: string; required: boolean; guesses: string[] }> = [
   { key: "fullName", label: "Nome completo", required: true, guesses: ["nome", "nome completo", "colaborador", "full_name", "name"] },
@@ -13,7 +13,13 @@ const fields: Array<{ key: FieldKey; label: string; required: boolean; guesses: 
   { key: "sectorName", label: "Setor", required: false, guesses: ["setor", "sector", "departamento"] },
   { key: "registration", label: "Matrícula", required: false, guesses: ["matrícula", "matricula", "registro", "registration", "matricula_num"] },
   { key: "weeklyHours", label: "Carga semanal (h)", required: false, guesses: ["carga", "carga semanal", "horas", "weekly_hours", "carga_horaria"] },
+  { key: "sex", label: "Sexo", required: false, guesses: ["sexo", "genero", "gênero", "sex"] },
 ];
+
+const sexAliases: Record<string, "male" | "female"> = {
+  m: "male", masculino: "male", male: "male", homem: "male",
+  f: "female", feminino: "female", female: "female", mulher: "female",
+};
 
 const normalize = (value: string) =>
   value
@@ -44,6 +50,7 @@ export function EmployeeCsvImport({
     sectorName: "",
     registration: "",
     weeklyHours: "",
+    sex: "",
   });
   const [importing, setImporting] = useState(false);
   const [results, setResults] = useState<RowOutcome[] | null>(null);
@@ -66,6 +73,7 @@ export function EmployeeCsvImport({
       sectorName: "",
       registration: "",
       weeklyHours: "",
+      sex: "",
     };
     for (const field of fields) {
       const match = parsed.headers.find((header) => field.guesses.includes(normalize(header)));
@@ -100,6 +108,8 @@ export function EmployeeCsvImport({
       const sectorId = sectorNameRaw ? (sectorByName.get(normalize(sectorNameRaw)) ?? null) : null;
       const weeklyHoursRaw = cell(row, "weeklyHours").replace(",", ".");
       const weeklyHours = weeklyHoursRaw ? Number(weeklyHoursRaw) : 44;
+      const sexRaw = cell(row, "sex");
+      const sex = sexRaw ? (sexAliases[normalize(sexRaw)] ?? null) : null;
       try {
         await saveEmployee({
           employeeId: null,
@@ -110,6 +120,7 @@ export function EmployeeCsvImport({
           registration: cell(row, "registration"),
           weeklyHours: Number.isFinite(weeklyHours) ? weeklyHours : 44,
           status: "active",
+          sex,
         });
         if (sectorNameRaw && !sectorId) {
           outcomes.push({

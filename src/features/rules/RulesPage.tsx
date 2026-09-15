@@ -39,6 +39,7 @@ const ruleLabel: Record<string, string> = {
   EMPLOYEE_UNAVAILABLE: "Restrição de disponibilidade",
   SECTOR_COVERAGE: "Cobertura mínima por setor",
   HOLIDAY_AUTHORIZATION: "Autorização em feriado",
+  SUNDAY_REST_ROTATION_WOMEN: "Rodízio de domingos (colaboradoras)",
 };
 
 const paramLabel: Record<string, string> = {

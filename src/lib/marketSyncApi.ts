@@ -563,13 +563,14 @@ export type EmployeeDirectoryRow = {
   weekly_hours: number
   status: 'active' | 'leave' | 'terminated'
   sector_id: string | null
+  sex: 'male' | 'female' | null
   sectors: { name: string } | { name: string }[] | null
 }
 
 export async function loadEmployeeDirectory(storeId: string) {
   const { data, error } = await client()
     .from('employees')
-    .select('id,full_name,job_title,registration,weekly_hours,status,sector_id,sectors(name)')
+    .select('id,full_name,job_title,registration,weekly_hours,status,sector_id,sex,sectors(name)')
     .eq('store_id', storeId)
     .order('full_name')
   if (error) throw error
@@ -585,6 +586,7 @@ export type EmployeeInput = {
   registration: string
   weeklyHours: number
   status: 'active' | 'leave' | 'terminated'
+  sex: 'male' | 'female' | null
 }
 
 export async function saveEmployee(input: EmployeeInput) {
@@ -597,6 +599,7 @@ export async function saveEmployee(input: EmployeeInput) {
     p_registration: input.registration,
     p_weekly_hours: input.weeklyHours,
     p_status: input.status,
+    p_sex: input.sex,
   })
   if (error) throw error
   return data as string

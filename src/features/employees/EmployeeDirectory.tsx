@@ -43,6 +43,7 @@ type DraftState = {
   registration: string;
   weeklyHours: string;
   status: EmployeeDirectoryRow["status"];
+  sex: "" | "male" | "female";
 };
 
 const emptyDraft: DraftState = {
@@ -53,6 +54,7 @@ const emptyDraft: DraftState = {
   registration: "",
   weeklyHours: "44",
   status: "active",
+  sex: "",
 };
 
 export function EmployeeDirectory({ storeId }: { storeId: string }) {
@@ -113,6 +115,7 @@ export function EmployeeDirectory({ storeId }: { storeId: string }) {
       registration: employee.registration ?? "",
       weeklyHours: String(employee.weekly_hours),
       status: employee.status,
+      sex: employee.sex ?? "",
     });
   };
 
@@ -131,6 +134,7 @@ export function EmployeeDirectory({ storeId }: { storeId: string }) {
         registration: draft.registration,
         weeklyHours: Number(draft.weeklyHours) || 0,
         status: draft.status,
+        sex: draft.sex || null,
       });
       setSaveMessage(draft.employeeId ? "Colaborador atualizado." : "Colaborador cadastrado.");
       refresh();
@@ -337,6 +341,19 @@ export function EmployeeDirectory({ storeId }: { storeId: string }) {
                     <option value="active">Ativo</option>
                     <option value="leave">Afastado</option>
                     <option value="terminated">Desligado</option>
+                  </select>
+                </label>
+              </div>
+              <div className="directory-form-row">
+                <label>
+                  Sexo
+                  <select
+                    value={draft.sex}
+                    onChange={(e) => setDraft({ ...draft, sex: e.target.value as DraftState["sex"] })}
+                  >
+                    <option value="">Não informado</option>
+                    <option value="female">Feminino</option>
+                    <option value="male">Masculino</option>
                   </select>
                 </label>
               </div>
