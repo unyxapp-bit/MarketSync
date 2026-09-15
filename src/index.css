@@ -1,2 +1,37 @@
 @import "tailwindcss";
+
+/* Design tokens shared with App.css, exposed as Tailwind utilities
+   (bg-brand, text-ink, border-line, rounded-md, shadow-sm, ...) so new
+   components built with Tailwind classes match the rest of the app. */
+@theme {
+  --color-ink: #0f172a;
+  --color-ink-soft: #334155;
+  --color-muted: #64748b;
+  --color-muted-soft: #94a3b8;
+  --color-line: #e2e8f0;
+  --color-line-soft: #edf1f5;
+  --color-surface: #ffffff;
+  --color-canvas: #f6f7f9;
+  --color-sidebar: #0b1220;
+  --color-sidebar-hover: #18213a;
+  --color-sidebar-text: #93a1b8;
+  --color-brand: #0e7a5f;
+  --color-brand-dark: #0a5c47;
+  --color-brand-soft: #e6f4ef;
+  --color-danger: #b3261e;
+  --color-danger-soft: #fdecea;
+  --color-warn: #92650f;
+  --color-warn-soft: #fdf3dd;
+
+  --radius-sm: 7px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-sm: 0 2px 10px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 10px 28px rgba(15, 23, 42, 0.08);
+
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
 * { box-sizing: border-box; } body { margin: 0; min-width: 320px; background: #f8fafc; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #172238; } button, input { font: inherit; } button { cursor: pointer; }
