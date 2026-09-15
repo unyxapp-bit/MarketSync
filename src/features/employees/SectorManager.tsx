@@ -38,7 +38,7 @@ export function SectorManager({ storeId }: { storeId: string }) {
       setMessage(
         error instanceof Error && error.message.includes("duplicate")
           ? "Já existe um setor com esse nome nesta loja."
-          : "Não foi possível salvar. Você precisa ser gerente da loja.",
+          : `Não foi possível salvar${error instanceof Error ? `: ${error.message}` : "."}`,
       );
     }
   };
@@ -48,8 +48,8 @@ export function SectorManager({ storeId }: { storeId: string }) {
     try {
       await deleteSector(sector.id);
       refresh();
-    } catch {
-      setMessage("Não foi possível remover o setor.");
+    } catch (error) {
+      setMessage(`Não foi possível remover o setor${error instanceof Error ? `: ${error.message}` : "."}`);
     }
   };
 
@@ -66,7 +66,7 @@ export function SectorManager({ storeId }: { storeId: string }) {
       setMessage(
         error instanceof Error && error.message.includes("duplicate")
           ? "Já existe um setor com esse nome nesta loja."
-          : "Não foi possível criar o setor. Você precisa ser gerente da loja.",
+          : `Não foi possível criar o setor${error instanceof Error ? `: ${error.message}` : "."}`,
       );
     } finally {
       setAdding(false);
