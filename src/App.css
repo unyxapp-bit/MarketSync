@@ -848,6 +848,41 @@ main {
 .summary p svg {
   color: #b17c2f;
 }
+.week-summary-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 27px;
+}
+.week-summary-card h2 {
+  font-size: 13px;
+  margin: 0 0 12px;
+  color: #536174;
+}
+.week-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+.week-summary-grid div {
+  display: grid;
+  gap: 3px;
+}
+.week-summary-grid strong {
+  font-size: 20px;
+  letter-spacing: -0.4px;
+  color: #167a62;
+}
+.week-summary-grid span {
+  font-size: 11px;
+  color: #7b8798;
+}
+@media (max-width: 700px) {
+  .week-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
 .sector {
   margin-top: 27px;
 }

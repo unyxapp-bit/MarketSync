@@ -458,6 +458,26 @@ export function ScheduleWorkspace() {
     const nextMonday = addDays(dates[6].iso, 1);
     return [...timelineByEmployee.values()].some((timeline) => timeline.has(nextMonday));
   }, [timelineByEmployee, dates]);
+  // Week-level totals to complement the per-day summary above — same source data
+  // (scheduleEmployees), just aggregated across all 7 days instead of just selectedDay.
+  const weekSummary = useMemo(() => {
+    let totalMinutes = 0;
+    let totalShifts = 0;
+    let sundayWorkers = 0;
+    let staffedCount = 0;
+    for (const employee of scheduleEmployees) {
+      let workedAny = false;
+      employee.schedule.forEach((shift, index) => {
+        if (!shift) return;
+        totalMinutes += dailyMinutes(shift);
+        totalShifts += 1;
+        workedAny = true;
+        if (index === 6) sundayWorkers += 1;
+      });
+      if (workedAny) staffedCount += 1;
+    }
+    return { totalMinutes, totalShifts, sundayWorkers, staffedCount };
+  }, [scheduleEmployees]);
   const sundayDecision = (review: Review) => {
     if (!review.shift) return { text: "Folga programada", kind: "neutral" };
     if (!review.hasPreSundayRest)
@@ -904,6 +924,27 @@ export function ScheduleWorkspace() {
             ? `${blocked} bloqueio(s) encontrado(s).`
             : "Sem bloqueios de interjornada neste dia."}
         </p>
+      </section>
+      <section className="week-summary-card">
+        <h2>Resumo da semana</h2>
+        <div className="week-summary-grid">
+          <div>
+            <strong>{weekSummary.totalMinutes ? formatMinutes(weekSummary.totalMinutes) : "0h00"}</strong>
+            <span>horas programadas</span>
+          </div>
+          <div>
+            <strong>{weekSummary.totalShifts}</strong>
+            <span>turnos no total</span>
+          </div>
+          <div>
+            <strong>{weekSummary.staffedCount}</strong>
+            <span>colaboradores escalados</span>
+          </div>
+          <div>
+            <strong>{weekSummary.sundayWorkers}</strong>
+            <span>domingos trabalhados</span>
+          </div>
+        </div>
       </section>
       {!weekId && store && (
         <section className="import-callout">
