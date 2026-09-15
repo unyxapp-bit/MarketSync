@@ -12,6 +12,22 @@ import {
   updateStore,
 } from "../../lib/marketSyncApi";
 import { useStore } from "../../shared/StoreContext";
+import { PageHero } from "../../shared/ui/PageHero";
+
+const cardClass = "p-[20px_22px] mb-[18px] bg-surface border border-line rounded-md shadow-xs overflow-hidden";
+const formClass = "grid gap-3 py-4 border-b border-[#edf0f2]";
+const labelClass = "grid gap-[5px] text-[10px] font-bold text-[#4e5d71] uppercase tracking-[0.3px]";
+const inputClass =
+  "h-[38px] border border-[#dce3e8] rounded-[6px] px-[10px] text-[13px] text-[#253247] normal-case tracking-normal font-normal";
+const actionsClass = "flex justify-end gap-[9px] mt-[22px]";
+const outlineBtn =
+  "h-[38px] px-[13px] rounded-[7px] font-[750] inline-flex items-center gap-[6px] bg-surface border border-line text-ink-soft hover:border-[#c7cfda] hover:bg-[#fafbfc] disabled:opacity-50";
+const solidBtn =
+  "h-[38px] px-[13px] rounded-[7px] font-[750] inline-flex items-center gap-[6px] bg-brand border border-brand text-white hover:bg-brand-dark disabled:opacity-50";
+const messageClass = (tone: "saving" | "error") =>
+  `text-[11px] leading-[1.4] mt-[14px] p-[9px] rounded-[6px] ${
+    tone === "saving" ? "bg-[#eff8f3] text-[#196d58]" : "bg-[#fff1ef] text-[#b23d34]"
+  }`;
 
 const BRAZILIAN_STATES = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
@@ -161,74 +177,73 @@ export function SettingsPage() {
 
   return (
     <>
-      <section className="hero hero-simple">
-        <div>
-          <p className="eyebrow">CONFIGURAÇÕES</p>
-          <h1>Conta e loja</h1>
-          <p className="subtitle">Seu perfil, sua senha e os dados básicos desta loja.</p>
-        </div>
-      </section>
+      <PageHero eyebrow="CONFIGURAÇÕES" title="Conta e loja" subtitle="Seu perfil, sua senha e os dados básicos desta loja." />
 
-      <section className="conflict-card settings-card">
-        <div className="audit-title">
-          <div>
-            <h2>
-              <User size={16} /> Meu perfil
-            </h2>
-          </div>
+      <section className={cardClass}>
+        <div className="flex items-end justify-between mb-[13px]">
+          <h2 className="flex items-center gap-2 text-[20px] tracking-[-0.5px] m-0 text-ink font-[650]">
+            <User size={16} /> Meu perfil
+          </h2>
         </div>
-        <form className="directory-form" onSubmit={submitProfile}>
-          <label>
+        <form className={formClass} onSubmit={submitProfile}>
+          <label className={labelClass}>
             Nome completo
-            <input required value={fullName} onChange={(event) => setFullName(event.target.value)} />
+            <input
+              required
+              className={inputClass}
+              value={fullName}
+              onChange={(event) => setFullName(event.target.value)}
+            />
           </label>
-          <label>
+          <label className={labelClass}>
             E-mail
-            <input value={email} disabled />
+            <input className={inputClass} value={email} disabled />
           </label>
-          {profileMessage && <p className={`editor-message ${profileTone}`}>{profileMessage}</p>}
-          <div className="editor-actions">
-            <button className="solid" type="submit" disabled={savingProfile}>
+          {profileMessage && <p className={messageClass(profileTone)}>{profileMessage}</p>}
+          <div className={actionsClass}>
+            <button className={solidBtn} type="submit" disabled={savingProfile}>
               <Save size={15} />
               {savingProfile ? "Salvando..." : "Salvar perfil"}
             </button>
           </div>
         </form>
 
-        <form className="directory-form settings-password-form" onSubmit={submitPassword}>
-          <div className="directory-form-row">
-            <label>
+        <form className={`${formClass} mt-[6px]`} onSubmit={submitPassword}>
+          <div className="grid grid-cols-2 gap-3">
+            <label className={labelClass}>
               Nova senha
               <input
                 required
                 type="password"
                 minLength={6}
+                className={inputClass}
                 value={newPassword}
                 onChange={(event) => setNewPassword(event.target.value)}
               />
             </label>
-            <label>
+            <label className={labelClass}>
               Confirmar nova senha
               <input
                 required
                 type="password"
                 minLength={6}
+                className={inputClass}
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
               />
             </label>
           </div>
-          {passwordMessage && <p className={`editor-message ${passwordTone}`}>{passwordMessage}</p>}
-          <div className="editor-actions">
-            <button className="solid" type="submit" disabled={savingPassword}>
+          {passwordMessage && <p className={messageClass(passwordTone)}>{passwordMessage}</p>}
+          <div className={actionsClass}>
+            <button className={solidBtn} type="submit" disabled={savingPassword}>
               <KeyRound size={15} />
               {savingPassword ? "Salvando..." : "Alterar senha"}
             </button>
           </div>
         </form>
 
-        <div className="editor-actions settings-signout">
-          <button className="outline" type="button" onClick={() => signOut()}>
+        <div className={`${actionsClass} justify-start pt-1`}>
+          <button className={outlineBtn} type="button" onClick={() => signOut()}>
             <LogOut size={15} />
             Sair da conta
           </button>
@@ -236,23 +251,25 @@ export function SettingsPage() {
       </section>
 
       {store && (
-        <section className="conflict-card settings-card">
-          <div className="audit-title">
+        <section className={cardClass}>
+          <div className="flex items-end justify-between mb-[13px]">
             <div>
-              <h2>
+              <h2 className="flex items-center gap-2 text-[20px] tracking-[-0.5px] m-0 text-ink font-[650]">
                 <Building2 size={16} /> Empresa
               </h2>
-              <p>O nome da organização, compartilhado por todas as lojas/filiais. Só o administrador edita.</p>
+              <p className="text-[12px] text-[#748196] mt-[5px] mb-0">
+                O nome da organização, compartilhado por todas as lojas/filiais. Só o administrador edita.
+              </p>
             </div>
           </div>
-          <form className="directory-form" onSubmit={submitOrg}>
-            <label>
+          <form className={formClass} onSubmit={submitOrg}>
+            <label className={labelClass}>
               Nome da empresa
-              <input required value={orgName} onChange={(event) => setOrgName(event.target.value)} />
+              <input required className={inputClass} value={orgName} onChange={(event) => setOrgName(event.target.value)} />
             </label>
-            {orgMessage && <p className={`editor-message ${orgTone}`}>{orgMessage}</p>}
-            <div className="editor-actions">
-              <button className="solid" type="submit" disabled={savingOrg}>
+            {orgMessage && <p className={messageClass(orgTone)}>{orgMessage}</p>}
+            <div className={actionsClass}>
+              <button className={solidBtn} type="submit" disabled={savingOrg}>
                 <Save size={15} />
                 {savingOrg ? "Salvando..." : "Salvar nome da empresa"}
               </button>
@@ -262,28 +279,30 @@ export function SettingsPage() {
       )}
 
       {store && (
-        <section className="conflict-card settings-card">
-          <div className="audit-title">
+        <section className={cardClass}>
+          <div className="flex items-end justify-between mb-[13px]">
             <div>
-              <h2>
+              <h2 className="flex items-center gap-2 text-[20px] tracking-[-0.5px] m-0 text-ink font-[650]">
                 <StoreIcon size={16} /> Dados da loja
               </h2>
-              <p>Visível para toda a equipe; só gerente, administrador ou RH/DP podem salvar.</p>
+              <p className="text-[12px] text-[#748196] mt-[5px] mb-0">
+                Visível para toda a equipe; só gerente, administrador ou RH/DP podem salvar.
+              </p>
             </div>
           </div>
-          <form className="directory-form" onSubmit={submitStore}>
-            <label>
+          <form className={formClass} onSubmit={submitStore}>
+            <label className={labelClass}>
               Nome da loja
-              <input required value={storeName} onChange={(event) => setStoreName(event.target.value)} />
+              <input required className={inputClass} value={storeName} onChange={(event) => setStoreName(event.target.value)} />
             </label>
-            <div className="directory-form-row">
-              <label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className={labelClass}>
                 Cidade
-                <input value={storeCity} onChange={(event) => setStoreCity(event.target.value)} />
+                <input className={inputClass} value={storeCity} onChange={(event) => setStoreCity(event.target.value)} />
               </label>
-              <label>
+              <label className={labelClass}>
                 Estado
-                <select value={storeState} onChange={(event) => setStoreState(event.target.value)}>
+                <select className={inputClass} value={storeState} onChange={(event) => setStoreState(event.target.value)}>
                   <option value="">—</option>
                   {BRAZILIAN_STATES.map((uf) => (
                     <option key={uf} value={uf}>
@@ -293,9 +312,9 @@ export function SettingsPage() {
                 </select>
               </label>
             </div>
-            {storeMessage && <p className={`editor-message ${storeTone}`}>{storeMessage}</p>}
-            <div className="editor-actions">
-              <button className="solid" type="submit" disabled={savingStore}>
+            {storeMessage && <p className={messageClass(storeTone)}>{storeMessage}</p>}
+            <div className={actionsClass}>
+              <button className={solidBtn} type="submit" disabled={savingStore}>
                 <Save size={15} />
                 {savingStore ? "Salvando..." : "Salvar dados da loja"}
               </button>
