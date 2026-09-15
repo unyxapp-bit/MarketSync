@@ -409,3 +409,33 @@ export async function createRuleSetRevision(ruleSetId: string, effectiveFrom: st
   if (error) throw error
   return data as string
 }
+
+// So the schedule grid's advisory coloring (interjornada, streak) reflects whatever the
+// organization configured on the Regras screen instead of hardcoded defaults, for the rule set
+// actually in effect on the displayed week (not just whichever one is active today).
+export async function loadRuleParametersForWeek(storeId: string, weekStart: string) {
+  const { data: store, error: storeError } = await client()
+    .from('stores')
+    .select('organization_id')
+    .eq('id', storeId)
+    .single()
+  if (storeError) throw storeError
+  const { data: ruleSets, error: ruleSetsError } = await client()
+    .from('rule_sets')
+    .select('id,effective_from,effective_to')
+    .eq('organization_id', store.organization_id)
+    .order('effective_from', { ascending: false })
+  if (ruleSetsError) throw ruleSetsError
+  const applicable = (ruleSets ?? []).find(
+    (rs) => rs.effective_from <= weekStart && (!rs.effective_to || rs.effective_to >= weekStart),
+  )
+  if (!applicable) return {} as Record<string, Record<string, number>>
+  const { data: rules, error: rulesError } = await client()
+    .from('rules')
+    .select('code,parameters')
+    .eq('rule_set_id', applicable.id)
+  if (rulesError) throw rulesError
+  return Object.fromEntries(
+    (rules ?? []).map((rule) => [rule.code, rule.parameters as Record<string, number>]),
+  ) as Record<string, Record<string, number>>
+}

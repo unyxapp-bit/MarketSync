@@ -26,6 +26,7 @@ import {
   importReceivedWeek,
   loadCanonicalWeek,
   loadComplianceContext,
+  loadRuleParametersForWeek,
   saveCanonicalEntry,
   validateSchedule,
   type ComplianceEntryRow,
@@ -127,6 +128,7 @@ export function ScheduleWorkspace() {
   const [weekId, setWeekId] = useState<string | null>(null);
   const [weekRevision, setWeekRevision] = useState<number | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [ruleParameters, setRuleParameters] = useState<Record<string, Record<string, number>>>({});
   const goToWeek = (nextWeekStart: string) => {
     setWeekStart(nextWeekStart);
     setSelectedDay(0);
@@ -166,9 +168,11 @@ export function ScheduleWorkspace() {
     Promise.all([
       loadCanonicalWeek(store.id, weekStart),
       loadComplianceContext(store.id, weekStart),
+      loadRuleParametersForWeek(store.id, weekStart),
     ])
-      .then(([record, historyRows]) => {
+      .then(([record, historyRows, parameters]) => {
         setHistoryByEmployee(buildHistoryMap(historyRows));
+        setRuleParameters(parameters);
         const isoToDay = new Map(dates.map((day, index) => [day.iso, index]));
         const byEmployee = new Map<string, Employee>();
         const ids: Record<string, string> = {};
@@ -241,6 +245,14 @@ export function ScheduleWorkspace() {
     }
     return map;
   }, [scheduleEmployees, employeeIds, historyByEmployee, dates]);
+  // Fall back to the same defaults the validate-schedule Edge Function uses when a rule isn't
+  // configured, so the advisory coloring here never contradicts the authoritative validation.
+  const interjourneyMinMinutes = Number(
+    ruleParameters.INTERJOURNEY_MIN?.minimum_minutes ?? 660,
+  );
+  const maxConsecutiveDays = Number(
+    ruleParameters.WEEKLY_REST_WINDOW?.maximum_consecutive_days ?? 7,
+  );
   const reviews = useMemo<Review[]>(
     () =>
       visible.map((employee) => {
@@ -272,13 +284,20 @@ export function ScheduleWorkspace() {
           hasPostSundayRest,
           blocked: Boolean(
             shift &&
-            ((rest !== undefined && rest < 660) ||
-              streak.count >= 7 ||
+            ((rest !== undefined && rest < interjourneyMinMinutes) ||
+              streak.count >= maxConsecutiveDays ||
               sundayRestViolation),
           ),
         };
       }),
-    [selectedDay, visible, timelineByEmployee, dates],
+    [
+      selectedDay,
+      visible,
+      timelineByEmployee,
+      dates,
+      interjourneyMinMinutes,
+      maxConsecutiveDays,
+    ],
   );
   const working = reviews.filter((review) => review.shift);
   const off = reviews.length - working.length;
@@ -709,14 +728,15 @@ export function ScheduleWorkspace() {
                         </div>
                         <div
                           className={
-                            review.rest !== undefined && review.rest < 660
+                            review.rest !== undefined &&
+                            review.rest < interjourneyMinMinutes
                               ? "status bad"
                               : "status good"
                           }
                         >
                           {review.rest === undefined
                             ? "Sem histórico"
-                            : review.rest < 660
+                            : review.rest < interjourneyMinMinutes
                               ? `${formatMinutes(review.rest)} · Bloquear`
                               : `${formatMinutes(review.rest)} · OK`}
                         </div>
@@ -745,7 +765,9 @@ export function ScheduleWorkspace() {
               Entrada, intervalo, retorno e saída dos três dias anteriores.
             </p>
           </div>
-          <span className="audit-rule">Mínimo de 11h entre jornadas</span>
+          <span className="audit-rule">
+            Mínimo de {formatMinutes(interjourneyMinMinutes)} entre jornadas
+          </span>
         </div>
         <div className="audit-card">
           <div className="audit-head">
