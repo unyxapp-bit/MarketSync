@@ -41,7 +41,6 @@ import {
   deleteShiftTemplate,
   getStoreEmployees,
   getStoreSectors,
-  importReceivedWeek,
   loadCanonicalWeek,
   loadComplianceContext,
   loadHolidays,
@@ -56,9 +55,6 @@ import {
 } from "../../lib/marketSyncApi";
 import { useStore } from "../../shared/StoreContext";
 
-// The only week importReceivedWeek knows how to seed (it transcribes one specific physical
-// schedule). Every other week is navigated to and edited purely through Supabase.
-const PILOT_IMPORT_WEEK_START = "2026-09-14";
 const UNASSIGNED_SECTOR = "Sem setor";
 // Store operating window used for the hourly coverage map — covers every shift start/end seen in
 // the pilot data (07:40–21:40) with a little margin on each side.
@@ -159,9 +155,6 @@ export function ScheduleWorkspace() {
   const [search, setSearch] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
   const [deepLinkApplied, setDeepLinkApplied] = useState(false);
-  const [importState, setImportState] = useState<
-    "idle" | "loading" | "done" | "error"
-  >("idle");
   const [validationState, setValidationState] = useState<
     "idle" | "running" | "passed" | "failed" | "error"
   >("idle");
@@ -310,7 +303,7 @@ export function ScheduleWorkspace() {
           }),
         );
       })
-      .catch(() => setImportState("error"));
+      .catch(() => setEmployeeRoster([]));
   }, [store]);
   useEffect(() => {
     if (!store) return;
@@ -333,7 +326,6 @@ export function ScheduleWorkspace() {
   useEffect(refreshShiftTemplates, [store]);
   useEffect(() => {
     if (!store || employeeRoster.length === 0) return;
-    setImportState((current) => (current === "idle" ? "loading" : current));
     Promise.all([
       loadCanonicalWeek(store.id, weekStart),
       loadComplianceContext(store.id, weekStart),
@@ -384,9 +376,8 @@ export function ScheduleWorkspace() {
         setDayTypeByEmployeeDay(dayTypes);
         setWeekId(record?.schedule.id ?? null);
         setWeekRevision(record?.schedule.revision ?? null);
-        setImportState(record ? "done" : "idle");
       })
-      .catch(() => setImportState("error"));
+      .catch(() => setScheduleEmployees([]));
   }, [store, weekStart, refreshKey, employeeRoster, dates]);
   // Lands on the exact cell when arriving from a link in the Central de conflitos
   // (?employee=<id>&day=<iso>). Waits for the roster to load before resolving the employee id.
@@ -920,31 +911,6 @@ export function ScheduleWorkspace() {
             <button className="outline" disabled={copyState === "copying"} onClick={copyPreviousWeek}>
               <FileDown size={16} />
               {copyState === "copying" ? "Copiando..." : "Copiar semana anterior"}
-            </button>
-          )}
-          {store && weekStart === PILOT_IMPORT_WEEK_START && (
-            <button
-              className="outline"
-              disabled={importState === "loading" || importState === "done"}
-              onClick={async () => {
-                setImportState("loading");
-                try {
-                  await importReceivedWeek(store.id);
-                  setImportState("done");
-                  setRefreshKey((value) => value + 1);
-                } catch {
-                  setImportState("error");
-                }
-              }}
-            >
-              <FileDown size={16} />
-              {importState === "loading"
-                ? "Importando..."
-                : weekId
-                  ? "Escala sincronizada"
-                  : importState === "error"
-                    ? "Tentar importar"
-                    : "Importar escala inicial"}
             </button>
           )}
           <button

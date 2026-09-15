@@ -1,5 +1,4 @@
 import { supabase } from './supabase'
-import { employees } from '../data/realSchedule'
 import { addDays } from './dates'
 
 export type ShiftDraft = {
@@ -104,48 +103,6 @@ export async function importCsvRows(rows: ShiftDraft[], scheduleWeekId: string) 
   for (const row of rows) await saveShift(scheduleWeekId, row)
   const { error } = await client().from('schedule_audit_events').insert({ schedule_week_id: scheduleWeekId, event_type: 'imported', payload: { rows: rows.length } })
   if (error) throw error
-}
-
-export async function importReceivedWeek(storeId: string) {
-  const api = client()
-  const { data: existingSectors, error: sectorsError } = await api.from('sectors').select('id,name').eq('store_id', storeId)
-  if (sectorsError) throw sectorsError
-  const sectorIds = new Map((existingSectors ?? []).map((sector) => [sector.name, sector.id]))
-  for (const name of ['Caixa', 'Fiscal']) {
-    if (!sectorIds.has(name)) {
-      const { data, error } = await api.from('sectors').insert({ store_id: storeId, name }).select('id,name').single()
-      if (error) throw error
-      sectorIds.set(data.name, data.id)
-    }
-  }
-  const { data: existingEmployees, error: employeesError } = await api.from('employees').select('id,full_name').eq('store_id', storeId)
-  if (employeesError) throw employeesError
-  const employeeIds = new Map((existingEmployees ?? []).map((employee) => [employee.full_name, employee.id]))
-  for (const employee of employees) {
-    if (!employeeIds.has(employee.name)) {
-      const { data, error } = await api.from('employees').insert({ store_id: storeId, sector_id: sectorIds.get(employee.sector), full_name: employee.name, job_title: employee.sector === 'Caixa' ? 'Operador(a) de caixa' : 'Fiscal' }).select('id,full_name').single()
-      if (error) throw error
-      employeeIds.set(data.full_name, data.id)
-    }
-  }
-  const week = await createWeek(storeId, '2026-09-14')
-  const shifts = employees.flatMap((employee) => employee.schedule.map((shift, day) => ({
-    schedule_week_id: week.id,
-    employee_id: employeeIds.get(employee.name),
-    work_date: `2026-09-${String(14 + day).padStart(2, '0')}`,
-    starts_at: shift?.start ?? null,
-    break_starts_at: shift?.breakStart ?? null,
-    break_ends_at: shift?.breakEnd ?? null,
-    ends_at: shift?.end ?? null,
-    status: shift ? 'draft' : 'off',
-  })))
-  const { error: shiftsError } = await api.from('shifts').upsert(shifts, { onConflict: 'employee_id,work_date' })
-  if (shiftsError) throw shiftsError
-  const { error: auditError } = await api.from('schedule_audit_events').insert({ schedule_week_id: week.id, event_type: 'imported', payload: { source: 'received_week_2026_09_14', rows: shifts.length } })
-  if (auditError) throw auditError
-  const { data: canonicalScheduleId, error: syncError } = await api.rpc('sync_legacy_week_to_canonical', { p_legacy_week_id: week.id })
-  if (syncError) throw syncError
-  return { ...week, canonicalScheduleId }
 }
 
 export async function getStoreEmployees(storeId: string) {
