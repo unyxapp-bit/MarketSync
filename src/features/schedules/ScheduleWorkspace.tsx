@@ -732,7 +732,7 @@ export function ScheduleWorkspace() {
     }
   };
   const saveEdit = async () => {
-    if (!editDraft || !weekId || weekRevision === null) return;
+    if (!editDraft || !store) return;
     const isWork = editDraft.dayType === "work";
     if (
       isWork &&
@@ -751,6 +751,15 @@ export function ScheduleWorkspace() {
     setEditState("saving");
     setEditMessage("");
     try {
+      let scheduleId = weekId;
+      let revisionBefore = weekRevision;
+      if (!scheduleId) {
+        await createWeek(store.id, weekStart);
+        const current = await loadCanonicalWeek(store.id, weekStart);
+        scheduleId = current?.schedule.id ?? null;
+        revisionBefore = current?.schedule.revision ?? null;
+      }
+      if (!scheduleId || revisionBefore === null) throw new Error("Não foi possível preparar esta semana.");
       const workDate = dates[editDraft.day].iso;
       const iso = (time: string) => `${workDate}T${time}:00-03:00`;
       const segments = !isWork
@@ -763,14 +772,15 @@ export function ScheduleWorkspace() {
             { startsAt: iso(editDraft.breakEnd), endsAt: iso(editDraft.end) },
           ];
       const revision = await saveCanonicalEntry({
-        scheduleId: weekId,
+        scheduleId,
         employeeId: editDraft.employeeId,
         workDate,
         dayType: editDraft.dayType,
         segments,
-        expectedRevision: weekRevision,
+        expectedRevision: revisionBefore,
         holidayAuthorized: isWork ? editDraft.holidayAuthorized : false,
       });
+      setWeekId(scheduleId);
       setHolidayAuthorizedByEmployeeDay((current) => {
         const next = new Map(current);
         const set = new Set(next.get(editDraft.employeeId));
@@ -852,7 +862,7 @@ export function ScheduleWorkspace() {
   // concurrency saveCanonicalEntry always uses) — a partial failure part-way through still leaves
   // the ones that succeeded saved, reported separately from the ones that didn't.
   const submitBatchApply = async () => {
-    if (!batchDraft || !weekId || weekRevision === null || batchSelection.size === 0) return;
+    if (!batchDraft || !store || batchSelection.size === 0) return;
     if (
       !(
         batchDraft.start < batchDraft.breakStart &&
@@ -865,19 +875,31 @@ export function ScheduleWorkspace() {
     }
     setBatchState("saving");
     setBatchMessage("");
+    let scheduleId = weekId;
+    let revision = weekRevision;
+    if (!scheduleId) {
+      await createWeek(store.id, weekStart);
+      const current = await loadCanonicalWeek(store.id, weekStart);
+      scheduleId = current?.schedule.id ?? null;
+      revision = current?.schedule.revision ?? null;
+    }
+    if (!scheduleId || revision === null) {
+      setBatchMessage("Não foi possível preparar esta semana.");
+      setBatchState("idle");
+      return;
+    }
     const workDate = dates[selectedDay].iso;
     const iso = (time: string) => `${workDate}T${time}:00-03:00`;
     const segments = [
       { startsAt: iso(batchDraft.start), endsAt: iso(batchDraft.breakStart) },
       { startsAt: iso(batchDraft.breakEnd), endsAt: iso(batchDraft.end) },
     ];
-    let revision = weekRevision;
     let applied = 0;
     let failed = 0;
     for (const employeeId of batchSelection) {
       try {
         revision = await saveCanonicalEntry({
-          scheduleId: weekId,
+          scheduleId,
           employeeId,
           workDate,
           dayType: "work",
@@ -889,6 +911,7 @@ export function ScheduleWorkspace() {
         failed += 1;
       }
     }
+    setWeekId(scheduleId);
     setWeekRevision(revision);
     setBatchMessage(
       failed === 0
@@ -1264,14 +1287,13 @@ export function ScheduleWorkspace() {
         <section className="import-callout">
           <div>
             <p className="eyebrow">PRIMEIRO PASSO</p>
-            <h2>Importe a escala recebida para liberar a edição</h2>
+            <h2>Nenhuma escala criada para esta semana ainda</h2>
             <p>
-              A grade exibida é a referência visual. Ao importar, os turnos
-              reais passam a ter revisão, auditoria, validação e publicação
-              segura.
+              Clique em qualquer turno na grade abaixo para começar a editar, importe uma
+              planilha (.xlsx) ou copie a semana anterior — qualquer um desses cria a escala
+              desta semana automaticamente.
             </p>
           </div>
-          <span>Dados ainda não sincronizados</span>
         </section>
       )}
       {validationIssues.length > 0 && (
