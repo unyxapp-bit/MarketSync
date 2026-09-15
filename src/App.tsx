@@ -63,7 +63,7 @@ function App() {
     return <OnboardingScreen onComplete={() => setHasStore(true)} />;
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <StoreProvider value={store}>
         <Routes>
           <Route element={<AppShell />}>
