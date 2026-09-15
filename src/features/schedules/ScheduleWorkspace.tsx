@@ -100,16 +100,31 @@ type Review = {
   hasPostSundayRest: boolean;
   blocked: boolean;
 };
+type EditDayType = "work" | "off" | "vacation" | "leave" | "absence";
 type EditDraft = {
   employee: Employee;
   employeeId: string;
   day: number;
-  isOff: boolean;
+  dayType: EditDayType;
   start: string;
   breakStart: string;
   breakEnd: string;
   end: string;
   holidayAuthorized: boolean;
+};
+const dayTypeOptions: Array<{ value: EditDayType; label: string }> = [
+  { value: "work", label: "Trabalho" },
+  { value: "off", label: "Folga" },
+  { value: "vacation", label: "Férias" },
+  { value: "leave", label: "Licença" },
+  { value: "absence", label: "Falta" },
+];
+const dayTypeShortLabel: Record<EditDayType, string> = {
+  work: "Trabalho",
+  off: "Folga",
+  vacation: "Férias",
+  leave: "Licença",
+  absence: "Falta",
 };
 type ValidationIssue = {
   employee_id?: string;
@@ -167,6 +182,12 @@ export function ScheduleWorkspace() {
   const [holidayAuthorizedByEmployeeDay, setHolidayAuthorizedByEmployeeDay] = useState<
     Map<string, Set<string>>
   >(new Map());
+  // day_type distinguishes off/vacation/leave/absence, but scheduleEmployees only stores
+  // Shift | null per day (null for all four) — this tracks the real type so the editor and grid
+  // label can tell them apart without widening Employee's schedule shape.
+  const [dayTypeByEmployeeDay, setDayTypeByEmployeeDay] = useState<Map<string, Map<string, EditDayType>>>(
+    new Map(),
+  );
   const holidayByIso = useMemo(
     () => new Map(holidays.map((holiday) => [holiday.date, holiday.name])),
     [holidays],
@@ -319,6 +340,7 @@ export function ScheduleWorkspace() {
           });
         }
         const authorizedByEmployee = new Map<string, Set<string>>();
+        const dayTypes = new Map<string, Map<string, EditDayType>>();
         record?.entries.forEach((entry) => {
           const dayIndex = isoToDay.get(entry.work_date);
           const existing = byEmployee.get(entry.employee_id);
@@ -338,10 +360,14 @@ export function ScheduleWorkspace() {
             set.add(entry.work_date);
             authorizedByEmployee.set(entry.employee_id, set);
           }
+          const typeMap = dayTypes.get(entry.employee_id) ?? new Map<string, EditDayType>();
+          typeMap.set(entry.work_date, entry.day_type as EditDayType);
+          dayTypes.set(entry.employee_id, typeMap);
         });
         setScheduleEmployees([...byEmployee.values()]);
         setEmployeeIds(ids);
         setHolidayAuthorizedByEmployeeDay(authorizedByEmployee);
+        setDayTypeByEmployeeDay(dayTypes);
         setWeekId(record?.schedule.id ?? null);
         setWeekRevision(record?.schedule.revision ?? null);
         setImportState(record ? "done" : "idle");
@@ -534,7 +560,7 @@ export function ScheduleWorkspace() {
       employee,
       employeeId,
       day: selectedDay,
-      isOff: !shift,
+      dayType: dayTypeByEmployeeDay.get(employeeId)?.get(currentIso) ?? (shift ? "work" : "off"),
       start: shift?.start ?? "07:40",
       breakStart: shift?.breakStart ?? "12:20",
       breakEnd: shift?.breakEnd ?? "14:20",
@@ -546,7 +572,7 @@ export function ScheduleWorkspace() {
     if (!editDraft) return;
     setEditDraft({
       ...editDraft,
-      isOff: false,
+      dayType: "work",
       start: template.start_time.slice(0, 5),
       breakStart: template.break_start_time.slice(0, 5),
       breakEnd: template.break_end_time.slice(0, 5),
@@ -584,8 +610,9 @@ export function ScheduleWorkspace() {
   };
   const saveEdit = async () => {
     if (!editDraft || !weekId || weekRevision === null) return;
+    const isWork = editDraft.dayType === "work";
     if (
-      !editDraft.isOff &&
+      isWork &&
       !(
         editDraft.start < editDraft.breakStart &&
         editDraft.breakStart <= editDraft.breakEnd &&
@@ -603,7 +630,7 @@ export function ScheduleWorkspace() {
     try {
       const workDate = dates[editDraft.day].iso;
       const iso = (time: string) => `${workDate}T${time}:00-03:00`;
-      const segments = editDraft.isOff
+      const segments = !isWork
         ? []
         : [
             {
@@ -616,16 +643,23 @@ export function ScheduleWorkspace() {
         scheduleId: weekId,
         employeeId: editDraft.employeeId,
         workDate,
-        dayType: editDraft.isOff ? "off" : "work",
+        dayType: editDraft.dayType,
         segments,
         expectedRevision: weekRevision,
-        holidayAuthorized: editDraft.isOff ? false : editDraft.holidayAuthorized,
+        holidayAuthorized: isWork ? editDraft.holidayAuthorized : false,
       });
       setHolidayAuthorizedByEmployeeDay((current) => {
         const next = new Map(current);
         const set = new Set(next.get(editDraft.employeeId));
-        if (!editDraft.isOff && editDraft.holidayAuthorized) set.add(workDate);
+        if (isWork && editDraft.holidayAuthorized) set.add(workDate);
         else set.delete(workDate);
+        next.set(editDraft.employeeId, set);
+        return next;
+      });
+      setDayTypeByEmployeeDay((current) => {
+        const next = new Map(current);
+        const set = new Map(next.get(editDraft.employeeId));
+        set.set(workDate, editDraft.dayType);
         next.set(editDraft.employeeId, set);
         return next;
       });
@@ -636,14 +670,14 @@ export function ScheduleWorkspace() {
                 ...employee,
                 schedule: employee.schedule.map((shift, index) =>
                   index === editDraft.day
-                    ? editDraft.isOff
-                      ? null
-                      : {
+                    ? isWork
+                      ? {
                           start: editDraft.start,
                           breakStart: editDraft.breakStart,
                           breakEnd: editDraft.breakEnd,
                           end: editDraft.end,
                         }
+                      : null
                     : shift,
                 ),
               }
@@ -1147,7 +1181,11 @@ export function ScheduleWorkspace() {
                         </div>
                       </>
                     ) : (
-                      <div className="off-label">Folga</div>
+                      <div className="off-label">
+                        {dayTypeShortLabel[
+                          dayTypeByEmployeeDay.get(employeeIds[review.employee.name] ?? "")?.get(dates[selectedDay].iso) ?? "off"
+                        ]}
+                      </div>
                     )}
                   </div>
                 );
@@ -1262,20 +1300,25 @@ export function ScheduleWorkspace() {
                 <X size={18} />
               </button>
             </div>
-            <label className="editor-off">
-              <input
-                type="checkbox"
-                checked={editDraft.isOff}
+            <label className="editor-day-type">
+              Tipo de dia
+              <select
+                value={editDraft.dayType}
                 onChange={(event) =>
                   setEditDraft({
                     ...editDraft,
-                    isOff: event.target.checked,
+                    dayType: event.target.value as EditDayType,
                   })
                 }
-              />{" "}
-              Folga neste dia
+              >
+                {dayTypeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </label>
-            {!editDraft.isOff && isHoliday(dates[editDraft.day].iso) && (
+            {editDraft.dayType === "work" && isHoliday(dates[editDraft.day].iso) && (
               <label className="editor-off">
                 <input
                   type="checkbox"
@@ -1290,7 +1333,7 @@ export function ScheduleWorkspace() {
                 Turno autorizado no feriado ({holidayByIso.get(dates[editDraft.day].iso)})
               </label>
             )}
-            {!editDraft.isOff && (
+            {editDraft.dayType === "work" && (
               <div className="shift-templates">
                 {shiftTemplates.map((template) => (
                   <span className="shift-template-chip" key={template.id}>
@@ -1326,7 +1369,7 @@ export function ScheduleWorkspace() {
                 </span>
               </div>
             )}
-            {!editDraft.isOff && (
+            {editDraft.dayType === "work" && (
               <div className="editor-times">
                 <label>
                   Entrada
