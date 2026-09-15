@@ -12,6 +12,27 @@ import {
   type RuleSetRow,
 } from "../../lib/marketSyncApi";
 import { useStore } from "../../shared/StoreContext";
+import { PageHero } from "../../shared/ui/PageHero";
+
+const statusToneClass: Record<string, string> = {
+  good: "bg-brand-soft text-brand-dark",
+  bad: "bg-danger-soft text-danger",
+  warn: "bg-warn-soft text-warn",
+  neutral: "bg-line-soft text-muted",
+};
+const decisionClass = "justify-self-start rounded-[6px] py-[5px] px-2 text-[10px] font-bold tracking-[-0.01em]";
+const cardClass = "mt-5 max-w-[780px] p-[22px] bg-surface border border-line rounded-md shadow-xs";
+const cardHeadingClass = "text-[14px] mb-4 m-0 text-[#2b394e]";
+const hintClass = "text-[12px] text-[#667085] leading-[1.5] mb-3";
+const revisionFormClass = "flex items-end gap-3";
+const revisionLabelClass = "grid gap-[5px] text-[10px] font-bold text-[#667085] uppercase tracking-[0.3px]";
+const revisionInputClass = "h-[38px] border border-[#dce3e8] rounded-[6px] px-[10px] text-[13px]";
+const revisionButtonClass =
+  "h-[38px] px-[14px] rounded-[7px] text-[12px] font-bold inline-flex items-center gap-[7px] bg-brand border border-brand text-white hover:bg-brand-dark disabled:opacity-50";
+const tableWrapClass = "border border-[#e1e6eb] rounded-[9px] bg-white overflow-auto";
+const headRowBase =
+  "min-w-0 grid items-center h-[38px] bg-[#f8fafb] text-[#8490a0] text-[10px] font-extrabold uppercase tracking-[0.35px]";
+const dataRowBase = "min-w-0 grid items-center min-h-[53px] border-t border-[#edf0f2] first:border-t-0";
 
 const severityLabel: Record<RuleRow["severity"], string> = {
   critical: "Crítico",
@@ -185,43 +206,53 @@ export function RulesPage() {
 
   return (
     <>
-      <section className="hero hero-simple">
-        <div>
-          <p className="eyebrow">ADMINISTRADOR E RH</p>
-          <h1>Regras de conformidade</h1>
-          <p className="subtitle">
-            {active
-              ? `${active.name} · versão ${active.version} · vigente desde ${active.effective_from}`
-              : "Nenhum perfil de regras cadastrado para esta organização."}
-          </p>
-        </div>
-      </section>
+      <PageHero
+        eyebrow="ADMINISTRADOR E RH"
+        title="Regras de conformidade"
+        subtitle={
+          active
+            ? `${active.name} · versão ${active.version} · vigente desde ${active.effective_from}`
+            : "Nenhum perfil de regras cadastrado para esta organização."
+        }
+      />
 
       {!loading && active && (
         <>
-          <section className="conflict-card rules-card">
+          <section className={cardClass}>
             {rules.map((rule) => (
-              <article key={rule.id} className="rule-row">
-                <div className="rule-head">
-                  <span className={`status ${severityTone[rule.severity]}`}>{severityLabel[rule.severity]}</span>
-                  <div className="rule-title">
-                    <span className="rule-title-name">{ruleLabel[rule.code] ?? rule.code}</span>
-                    <code className="rule-title-code">{rule.code}</code>
+              <article key={rule.id} className="p-[16px_18px] border-t border-[#edf0f2] first:border-t-0 first:pt-0">
+                <div className="flex items-center gap-[10px] mb-[10px]">
+                  <span className={`${decisionClass} ${statusToneClass[severityTone[rule.severity]]}`}>
+                    {severityLabel[rule.severity]}
+                  </span>
+                  <div className="flex flex-col gap-[2px]">
+                    <span className="text-[13px] font-bold text-[#2b394e]">{ruleLabel[rule.code] ?? rule.code}</span>
+                    <code className="text-[10px] font-semibold font-mono text-[#9aa6b5] tracking-[0.2px]">
+                      {rule.code}
+                    </code>
                   </div>
-                  {rule.blocking && <span className="rule-blocking">BLOQUEIA</span>}
-                  {rule.legal_basis && <span className="rule-basis">{rule.legal_basis}</span>}
+                  {rule.blocking && (
+                    <span className="rounded-[6px] py-[3px] px-2 bg-[#fce9e6] text-[#a63e35] text-[9px] font-bold tracking-[-0.01em]">
+                      BLOQUEIA
+                    </span>
+                  )}
+                  {rule.legal_basis && <span className="ml-auto text-[11px] text-[#8590a0]">{rule.legal_basis}</span>}
                 </div>
-                <div className="rule-params">
+                <div className="flex flex-wrap gap-[14px]">
                   {Object.entries(rule.paramsDraft).length === 0 && (
-                    <span className="rule-no-params">Sem parâmetros configuráveis</span>
+                    <span className="text-[11px] text-[#9aa6b5]">Sem parâmetros configuráveis</span>
                   )}
                   {Object.entries(rule.paramsDraft).map(([key, value]) => (
-                    <label key={key} className="rule-param">
+                    <label
+                      key={key}
+                      className="grid gap-1 text-[10px] font-bold text-[#667085] uppercase tracking-[0.3px]"
+                    >
                       {paramLabel[key] ?? key}
                       <input
                         type="number"
                         value={value}
                         onChange={(event) => updateParam(rule.id, key, event.target.value)}
+                        className="h-[34px] w-[120px] border border-[#dce3e8] rounded-[6px] px-[9px] text-[13px] text-[#253247] normal-case tracking-normal font-normal"
                       />
                     </label>
                   ))}
@@ -230,64 +261,83 @@ export function RulesPage() {
             ))}
           </section>
 
-          <section className="publication-card rules-revision">
-            <h2>Nova versão</h2>
-            <p className="publication-hint">
+          <section className={cardClass}>
+            <h2 className={cardHeadingClass}>Nova versão</h2>
+            <p className={hintClass}>
               Editar os parâmetros acima e salvar cria uma nova versão vigente a partir da data
               escolhida; a versão atual continua no histórico e a validação sempre registra qual
               versão exata foi usada.
             </p>
-            <div className="rules-revision-form">
-              <label>
+            <div className={revisionFormClass}>
+              <label className={revisionLabelClass}>
                 Vigente a partir de
                 <input
                   type="date"
                   value={effectiveFrom}
                   min={active.effective_from}
                   onChange={(event) => setEffectiveFrom(event.target.value)}
+                  className={revisionInputClass}
                 />
               </label>
-              <button className="solid" disabled={saving} onClick={submitRevision}>
+              <button className={revisionButtonClass} disabled={saving} onClick={submitRevision}>
                 <ShieldCheck size={16} />
                 {saving ? "Salvando..." : "Criar nova versão"}
               </button>
             </div>
-            {message && <p className={`editor-message ${messageTone}`}>{message}</p>}
+            {message && (
+              <p
+                className={`text-[11px] leading-[1.4] mt-[14px] p-[9px] rounded-[6px] ${
+                  messageTone === "error" ? "bg-[#fff1ef] text-[#b23d34]" : "bg-[#eff8f3] text-[#196d58]"
+                }`}
+              >
+                {message}
+              </p>
+            )}
           </section>
         </>
       )}
 
-      <section className="publication-card rules-revision">
-        <h2>Calendário de feriados</h2>
-        <p className="publication-hint">
+      <section className={cardClass}>
+        <h2 className={cardHeadingClass}>Calendário de feriados</h2>
+        <p className={hintClass}>
           Datas cadastradas aqui alimentam a regra HOLIDAY_AUTHORIZATION: um turno agendado num
           feriado sem autorização marcada na escala gera um alerta de conformidade.
         </p>
-        <form className="rules-revision-form" onSubmit={submitHoliday}>
-          <label>
+        <form className={revisionFormClass} onSubmit={submitHoliday}>
+          <label className={revisionLabelClass}>
             Data
-            <input required name="date" type="date" />
+            <input required name="date" type="date" className={revisionInputClass} />
           </label>
-          <label>
+          <label className={revisionLabelClass}>
             Nome do feriado
-            <input required name="name" type="text" placeholder="Ex.: Dia do Comerciário" />
+            <input
+              required
+              name="name"
+              type="text"
+              placeholder="Ex.: Dia do Comerciário"
+              className={revisionInputClass}
+            />
           </label>
-          <button className="solid" disabled={savingHoliday} type="submit">
+          <button className={revisionButtonClass} disabled={savingHoliday} type="submit">
             <CalendarPlus size={16} />
             {savingHoliday ? "Salvando..." : "Adicionar feriado"}
           </button>
         </form>
-        {holidayMessage && <p className="editor-message error">{holidayMessage}</p>}
+        {holidayMessage && (
+          <p className="text-[11px] leading-[1.4] mt-[14px] p-[9px] rounded-[6px] bg-[#fff1ef] text-[#b23d34]">
+            {holidayMessage}
+          </p>
+        )}
         {holidays.length > 0 && (
-          <div className="audit-card">
-            <div className="audit-head rules-history-head">
-              <span>Data</span>
+          <div className={`${tableWrapClass} mt-4`}>
+            <div className={`${headRowBase} grid-cols-[90px_1fr_100px]`}>
+              <span className="pl-4">Data</span>
               <span>Feriado</span>
               <span></span>
             </div>
             {holidays.map((holiday) => (
-              <div className="audit-row rules-history-row" key={holiday.id}>
-                <strong>{holiday.date}</strong>
+              <div className={`${dataRowBase} grid-cols-[90px_1fr_100px]`} key={holiday.id}>
+                <strong className="pl-4 text-[12px] text-[#314056]">{holiday.date}</strong>
                 <span>{holiday.name}</span>
                 <button
                   className="outline"
@@ -304,21 +354,25 @@ export function RulesPage() {
       </section>
 
       {!loading && ruleSets.length > 1 && (
-        <section className="publication-card rules-history">
-          <h2>Histórico de versões</h2>
-          <div className="audit-card">
-            <div className="audit-head rules-history-head">
-              <span>Versão</span>
+        <section className={cardClass}>
+          <h2 className={cardHeadingClass}>Histórico de versões</h2>
+          <div className={tableWrapClass}>
+            <div className={`${headRowBase} grid-cols-[90px_1fr_100px]`}>
+              <span className="pl-4">Versão</span>
               <span>Vigência</span>
               <span>Estado</span>
             </div>
             {ruleSets.map((ruleSet) => (
-              <div className="audit-row rules-history-row" key={ruleSet.id}>
-                <strong>v{ruleSet.version}</strong>
+              <div className={`${dataRowBase} grid-cols-[90px_1fr_100px]`} key={ruleSet.id}>
+                <strong className="pl-4 text-[12px] text-[#314056]">v{ruleSet.version}</strong>
                 <span>
                   {ruleSet.effective_from} {ruleSet.effective_to ? `– ${ruleSet.effective_to}` : "em diante"}
                 </span>
-                <span className={`decision ${ruleSet.id === active?.id ? "good" : "neutral"}`}>
+                <span
+                  className={`${decisionClass} ${
+                    ruleSet.id === active?.id ? statusToneClass.good : statusToneClass.neutral
+                  }`}
+                >
                   {ruleSet.id === active?.id ? "Ativa" : "Expirada"}
                 </span>
               </div>
