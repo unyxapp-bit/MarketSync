@@ -1987,3 +1987,121 @@ footer span:last-child {
     display: none;
   }
 }
+
+/* Regras de conformidade */
+.rules-card {
+  margin: 22px 0;
+  max-width: 780px;
+}
+.rule-row {
+  padding: 16px 18px;
+  border-top: 1px solid #edf0f2;
+}
+.rule-row:first-child {
+  border-top: 0;
+}
+.rule-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.rule-head strong {
+  font:
+    700 12px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  color: #2b394e;
+}
+.rule-blocking {
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: #fce9e6;
+  color: #a63e35;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+.rule-basis {
+  margin-left: auto;
+  font-size: 11px;
+  color: #8590a0;
+}
+.rule-params {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.rule-no-params {
+  font-size: 11px;
+  color: #9aa6b5;
+}
+.rule-param {
+  display: grid;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #667085;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.rule-param input {
+  height: 34px;
+  width: 120px;
+  border: 1px solid #dce3e8;
+  border-radius: 6px;
+  padding: 0 9px;
+  font-size: 13px;
+  color: #253247;
+}
+.rules-revision {
+  margin-top: 20px;
+  max-width: 780px;
+}
+.rules-revision-form {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+}
+.rules-revision-form label {
+  display: grid;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #667085;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.rules-revision-form input {
+  height: 38px;
+  border: 1px solid #dce3e8;
+  border-radius: 6px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+.rules-revision-form button {
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.rules-history {
+  margin-top: 20px;
+  max-width: 780px;
+}
+.rules-history-head,
+.rules-history-row {
+  grid-template-columns: 90px 1fr 100px;
+  min-width: 0;
+}
+@media (max-width: 700px) {
+  .rules-revision-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

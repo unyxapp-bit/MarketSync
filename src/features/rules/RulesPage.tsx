@@ -1,0 +1,204 @@
+import { useCallback, useEffect, useState } from "react";
+import { ShieldCheck } from "lucide-react";
+import {
+  createRuleSetRevision,
+  loadRuleSets,
+  type RuleRow,
+  type RuleSetRow,
+} from "../../lib/marketSyncApi";
+import { useStore } from "../../shared/StoreContext";
+
+const severityLabel: Record<RuleRow["severity"], string> = {
+  critical: "Crítico",
+  warning: "Alerta",
+  info: "Info",
+};
+const severityTone: Record<RuleRow["severity"], string> = {
+  critical: "bad",
+  warning: "warn",
+  info: "neutral",
+};
+
+type EditableRule = RuleRow & { paramsDraft: Record<string, string> };
+
+const draftFromRule = (rule: RuleRow): EditableRule => ({
+  ...rule,
+  paramsDraft: Object.fromEntries(
+    Object.entries(rule.parameters ?? {}).map(([key, value]) => [key, String(value)]),
+  ),
+});
+
+export function RulesPage() {
+  const store = useStore();
+  const [loading, setLoading] = useState(true);
+  const [ruleSets, setRuleSets] = useState<RuleSetRow[]>([]);
+  const [active, setActive] = useState<RuleSetRow | null>(null);
+  const [rules, setRules] = useState<EditableRule[]>([]);
+  const [effectiveFrom, setEffectiveFrom] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState<"error" | "saving">("saving");
+
+  const refresh = useCallback(() => {
+    if (!store) return;
+    setLoading(true);
+    loadRuleSets(store.id)
+      .then(({ ruleSets, active, rules }) => {
+        setRuleSets(ruleSets);
+        setActive(active);
+        setRules(rules.map(draftFromRule));
+      })
+      .catch(() => {
+        setMessageTone("error");
+        setMessage("Não foi possível carregar as regras de conformidade.");
+      })
+      .finally(() => setLoading(false));
+  }, [store]);
+
+  useEffect(refresh, [refresh]);
+
+  if (!store) return null;
+
+  const updateParam = (ruleId: string, key: string, value: string) => {
+    setRules((current) =>
+      current.map((rule) =>
+        rule.id === ruleId ? { ...rule, paramsDraft: { ...rule.paramsDraft, [key]: value } } : rule,
+      ),
+    );
+  };
+
+  const submitRevision = async () => {
+    if (!active) return;
+    if (!effectiveFrom) {
+      setMessageTone("error");
+      setMessage("Escolha a partir de quando a nova versão passa a valer.");
+      return;
+    }
+    setSaving(true);
+    setMessage("");
+    try {
+      const payload = rules.map((rule) => ({
+        code: rule.code,
+        severity: rule.severity,
+        blocking: rule.blocking,
+        legal_basis: rule.legal_basis,
+        parameters: Object.fromEntries(
+          Object.entries(rule.paramsDraft).map(([key, value]) => [key, Number(value)]),
+        ),
+      }));
+      await createRuleSetRevision(active.id, effectiveFrom, payload);
+      setMessageTone("saving");
+      setMessage("Nova versão criada. A versão anterior fica preservada no histórico.");
+      setEffectiveFrom("");
+      refresh();
+    } catch (error) {
+      setMessageTone("error");
+      setMessage(
+        error instanceof Error && error.message.includes("owner")
+          ? "Apenas o administrador (owner) da organização pode criar uma nova versão de regras."
+          : error instanceof Error && error.message.includes("effect after")
+            ? "A nova versão precisa valer a partir de uma data depois da vigência atual."
+            : "Não foi possível criar a nova versão.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <section className="hero hero-simple">
+        <div>
+          <p className="eyebrow">ADMINISTRADOR E RH</p>
+          <h1>Regras de conformidade</h1>
+          <p className="subtitle">
+            {active
+              ? `${active.name} · versão ${active.version} · vigente desde ${active.effective_from}`
+              : "Nenhum perfil de regras cadastrado para esta organização."}
+          </p>
+        </div>
+      </section>
+
+      {!loading && active && (
+        <>
+          <section className="conflict-card rules-card">
+            {rules.map((rule) => (
+              <article key={rule.id} className="rule-row">
+                <div className="rule-head">
+                  <span className={`status ${severityTone[rule.severity]}`}>{severityLabel[rule.severity]}</span>
+                  <strong>{rule.code}</strong>
+                  {rule.blocking && <span className="rule-blocking">BLOQUEIA</span>}
+                  {rule.legal_basis && <span className="rule-basis">{rule.legal_basis}</span>}
+                </div>
+                <div className="rule-params">
+                  {Object.entries(rule.paramsDraft).length === 0 && (
+                    <span className="rule-no-params">Sem parâmetros configuráveis</span>
+                  )}
+                  {Object.entries(rule.paramsDraft).map(([key, value]) => (
+                    <label key={key} className="rule-param">
+                      {key}
+                      <input
+                        type="number"
+                        value={value}
+                        onChange={(event) => updateParam(rule.id, key, event.target.value)}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </section>
+
+          <section className="publication-card rules-revision">
+            <h2>Nova versão</h2>
+            <p className="publication-hint">
+              Editar os parâmetros acima e salvar cria uma nova versão vigente a partir da data
+              escolhida; a versão atual continua no histórico e a validação sempre registra qual
+              versão exata foi usada.
+            </p>
+            <div className="rules-revision-form">
+              <label>
+                Vigente a partir de
+                <input
+                  type="date"
+                  value={effectiveFrom}
+                  min={active.effective_from}
+                  onChange={(event) => setEffectiveFrom(event.target.value)}
+                />
+              </label>
+              <button className="solid" disabled={saving} onClick={submitRevision}>
+                <ShieldCheck size={16} />
+                {saving ? "Salvando..." : "Criar nova versão"}
+              </button>
+            </div>
+            {message && <p className={`editor-message ${messageTone}`}>{message}</p>}
+          </section>
+        </>
+      )}
+
+      {!loading && ruleSets.length > 1 && (
+        <section className="publication-card rules-history">
+          <h2>Histórico de versões</h2>
+          <div className="audit-card">
+            <div className="audit-head rules-history-head">
+              <span>Versão</span>
+              <span>Vigência</span>
+              <span>Estado</span>
+            </div>
+            {ruleSets.map((ruleSet) => (
+              <div className="audit-row rules-history-row" key={ruleSet.id}>
+                <strong>v{ruleSet.version}</strong>
+                <span>
+                  {ruleSet.effective_from} {ruleSet.effective_to ? `– ${ruleSet.effective_to}` : "em diante"}
+                </span>
+                <span className={`decision ${ruleSet.id === active?.id ? "good" : "neutral"}`}>
+                  {ruleSet.id === active?.id ? "Ativa" : "Expirada"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </>
+  );
+}

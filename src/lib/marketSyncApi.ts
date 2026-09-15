@@ -344,3 +344,68 @@ export async function inviteStoreMember(input: { storeId: string; email: string;
   if (error) throw error
   return data
 }
+
+export type RuleRow = {
+  id: string
+  code: string
+  severity: 'info' | 'warning' | 'critical'
+  blocking: boolean
+  parameters: Record<string, number>
+  legal_basis: string | null
+}
+export type RuleSetRow = {
+  id: string
+  name: string
+  version: number
+  effective_from: string
+  effective_to: string | null
+}
+
+// rule_sets are scoped by organization, not store, so this resolves the store's organization
+// first. The "active" set is the one with no effective_to (open-ended); if every version has
+// been closed out (shouldn't normally happen) it falls back to the most recent one.
+export async function loadRuleSets(storeId: string) {
+  const { data: store, error: storeError } = await client()
+    .from('stores')
+    .select('organization_id')
+    .eq('id', storeId)
+    .single()
+  if (storeError) throw storeError
+  const { data: ruleSets, error: ruleSetsError } = await client()
+    .from('rule_sets')
+    .select('id,name,version,effective_from,effective_to')
+    .eq('organization_id', store.organization_id)
+    .order('effective_from', { ascending: false })
+  if (ruleSetsError) throw ruleSetsError
+  const rows = (ruleSets ?? []) as RuleSetRow[]
+  const active = rows.find((rs) => !rs.effective_to) ?? rows[0] ?? null
+  let rules: RuleRow[] = []
+  if (active) {
+    const { data, error } = await client()
+      .from('rules')
+      .select('id,code,severity,blocking,parameters,legal_basis')
+      .eq('rule_set_id', active.id)
+      .order('code')
+    if (error) throw error
+    rules = (data ?? []) as RuleRow[]
+  }
+  return { organizationId: store.organization_id as string, ruleSets: rows, active, rules }
+}
+
+export type RuleRevisionInput = {
+  code: string
+  severity: 'info' | 'warning' | 'critical'
+  blocking: boolean
+  parameters: Record<string, number>
+  legal_basis: string | null
+}
+
+export async function createRuleSetRevision(ruleSetId: string, effectiveFrom: string, rules: RuleRevisionInput[]) {
+  const { data, error } = await client().rpc('create_rule_set_revision', {
+    p_rule_set_id: ruleSetId,
+    p_effective_from: effectiveFrom,
+    p_rules: rules,
+  })
+  if (error) throw error
+  return data as string
+}

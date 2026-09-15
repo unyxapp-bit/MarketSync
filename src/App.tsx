@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { History, ShieldCheck } from "lucide-react";
+import { History } from "lucide-react";
 import { AuthScreen } from "./components/AuthScreen";
 import { OnboardingScreen } from "./components/OnboardingScreen";
 import { supabase } from "./lib/supabase";
@@ -14,6 +14,7 @@ import { ScheduleWorkspace } from "./features/schedules/ScheduleWorkspace";
 import { EmployeesPage } from "./features/employees/EmployeesPage";
 import { ConflictsPage } from "./features/conflicts/ConflictsPage";
 import { PublicationsPage } from "./features/publications/PublicationsPage";
+import { RulesPage } from "./features/rules/RulesPage";
 import "./App.css";
 
 function App() {
@@ -72,17 +73,7 @@ function App() {
             <Route path="/app/schedules" element={<ScheduleWorkspace />} />
             <Route path="/app/conflicts" element={<ConflictsPage />} />
             <Route path="/app/employees" element={<EmployeesPage />} />
-            <Route
-              path="/app/rules"
-              element={
-                <PlaceholderPage
-                  eyebrow="ADMINISTRADOR E RH"
-                  title="Regras de conformidade"
-                  description="Perfis de regras versionados por organização, com severidade, bloqueio, escopo e vigência configuráveis."
-                  icon={ShieldCheck}
-                />
-              }
-            />
+            <Route path="/app/rules" element={<RulesPage />} />
             <Route path="/app/publications" element={<PublicationsPage />} />
             <Route
               path="/app/audit"
