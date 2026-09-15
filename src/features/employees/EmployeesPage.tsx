@@ -1,5 +1,6 @@
 import { TeamAdmin } from "../../components/TeamAdmin";
 import { useStore } from "../../shared/StoreContext";
+import { EmployeeDirectory } from "./EmployeeDirectory";
 
 export function EmployeesPage() {
   const store = useStore();
@@ -15,6 +16,7 @@ export function EmployeesPage() {
           </p>
         </div>
       </section>
+      <EmployeeDirectory storeId={store.id} />
       <TeamAdmin storeId={store.id} />
     </>
   );

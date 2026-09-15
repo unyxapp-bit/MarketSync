@@ -530,3 +530,117 @@ export async function loadAuditTrail(storeId: string, weekStart: string) {
     events: (eventData ?? []) as unknown as AuditEventRow[],
   }
 }
+
+export type EmployeeDirectoryRow = {
+  id: string
+  full_name: string
+  job_title: string
+  registration: string | null
+  weekly_hours: number
+  status: 'active' | 'leave' | 'terminated'
+  sector_id: string | null
+  sectors: { name: string } | { name: string }[] | null
+}
+
+export async function loadEmployeeDirectory(storeId: string) {
+  const { data, error } = await client()
+    .from('employees')
+    .select('id,full_name,job_title,registration,weekly_hours,status,sector_id,sectors(name)')
+    .eq('store_id', storeId)
+    .order('full_name')
+  if (error) throw error
+  return (data ?? []) as EmployeeDirectoryRow[]
+}
+
+export type EmployeeInput = {
+  employeeId: string | null
+  storeId: string
+  sectorId: string | null
+  fullName: string
+  jobTitle: string
+  registration: string
+  weeklyHours: number
+  status: 'active' | 'leave' | 'terminated'
+}
+
+export async function saveEmployee(input: EmployeeInput) {
+  const { data, error } = await client().rpc('upsert_employee', {
+    p_employee_id: input.employeeId,
+    p_store_id: input.storeId,
+    p_sector_id: input.sectorId,
+    p_full_name: input.fullName,
+    p_job_title: input.jobTitle,
+    p_registration: input.registration,
+    p_weekly_hours: input.weeklyHours,
+    p_status: input.status,
+  })
+  if (error) throw error
+  return data as string
+}
+
+export type ContractRow = {
+  id: string
+  start_date: string
+  end_date: string | null
+  weekly_minutes: number
+}
+
+export async function loadEmployeeContracts(employeeId: string) {
+  const { data, error } = await client()
+    .from('employment_contracts')
+    .select('id,start_date,end_date,weekly_minutes')
+    .eq('employee_id', employeeId)
+    .order('start_date', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as ContractRow[]
+}
+
+export async function addEmploymentContract(employeeId: string, startDate: string, weeklyMinutes: number) {
+  const { data, error } = await client().rpc('add_employment_contract', {
+    p_employee_id: employeeId,
+    p_start_date: startDate,
+    p_weekly_minutes: weeklyMinutes,
+  })
+  if (error) throw error
+  return data as string
+}
+
+export type ConstraintRow = {
+  id: string
+  type: string
+  start_at: string
+  end_at: string | null
+  payload: Record<string, unknown>
+}
+
+export async function loadEmployeeConstraints(employeeId: string) {
+  const { data, error } = await client()
+    .from('employee_constraints')
+    .select('id,type,start_at,end_at,payload')
+    .eq('employee_id', employeeId)
+    .order('start_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as ConstraintRow[]
+}
+
+export async function addEmployeeConstraint(
+  employeeId: string,
+  type: string,
+  startAt: string,
+  endAt: string | null,
+  note: string,
+) {
+  const { error } = await client().rpc('add_employee_constraint', {
+    p_employee_id: employeeId,
+    p_type: type,
+    p_start_at: startAt,
+    p_end_at: endAt,
+    p_payload: note ? { note } : {},
+  })
+  if (error) throw error
+}
+
+export async function deleteEmployeeConstraint(constraintId: string) {
+  const { error } = await client().rpc('delete_employee_constraint', { p_constraint_id: constraintId })
+  if (error) throw error
+}
