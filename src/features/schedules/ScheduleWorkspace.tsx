@@ -143,6 +143,16 @@ export function ScheduleWorkspace() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const muralRef = useRef<HTMLDivElement>(null);
   const [isMural, setIsMural] = useState(false);
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchSelection, setBatchSelection] = useState<Set<string>>(new Set());
+  const [batchDraft, setBatchDraft] = useState<{
+    start: string;
+    breakStart: string;
+    breakEnd: string;
+    end: string;
+  } | null>(null);
+  const [batchState, setBatchState] = useState<"idle" | "saving">("idle");
+  const [batchMessage, setBatchMessage] = useState("");
   const [monthStart, setMonthStart] = useState(() => startOfMonth(todayIso()));
   const dates = useMemo(() => weekDates(weekStart), [weekStart]);
   const [selectedDay, setSelectedDay] = useState(0);
@@ -716,6 +726,72 @@ export function ScheduleWorkspace() {
     if (document.fullscreenElement) document.exitFullscreen();
     else muralRef.current?.requestFullscreen();
   };
+  const toggleBatchSelection = (employeeId: string) => {
+    setBatchSelection((current) => {
+      const next = new Set(current);
+      if (next.has(employeeId)) next.delete(employeeId);
+      else next.add(employeeId);
+      return next;
+    });
+  };
+  const openBatchApply = () => {
+    setBatchMessage("");
+    setBatchDraft({ start: "07:40", breakStart: "12:20", breakEnd: "14:20", end: "17:40" });
+  };
+  // Applies the same shift to every selected employee for the currently selected day. Sequential
+  // saves so each can use the schedule's returned revision for the next call (the same optimistic
+  // concurrency saveCanonicalEntry always uses) — a partial failure part-way through still leaves
+  // the ones that succeeded saved, reported separately from the ones that didn't.
+  const submitBatchApply = async () => {
+    if (!batchDraft || !weekId || weekRevision === null || batchSelection.size === 0) return;
+    if (
+      !(
+        batchDraft.start < batchDraft.breakStart &&
+        batchDraft.breakStart <= batchDraft.breakEnd &&
+        batchDraft.breakEnd < batchDraft.end
+      )
+    ) {
+      setBatchMessage("Os horários precisam seguir a ordem: entrada, intervalo, retorno e saída.");
+      return;
+    }
+    setBatchState("saving");
+    setBatchMessage("");
+    const workDate = dates[selectedDay].iso;
+    const iso = (time: string) => `${workDate}T${time}:00-03:00`;
+    const segments = [
+      { startsAt: iso(batchDraft.start), endsAt: iso(batchDraft.breakStart) },
+      { startsAt: iso(batchDraft.breakEnd), endsAt: iso(batchDraft.end) },
+    ];
+    let revision = weekRevision;
+    let applied = 0;
+    let failed = 0;
+    for (const employeeId of batchSelection) {
+      try {
+        revision = await saveCanonicalEntry({
+          scheduleId: weekId,
+          employeeId,
+          workDate,
+          dayType: "work",
+          segments,
+          expectedRevision: revision,
+        });
+        applied += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    setWeekRevision(revision);
+    setBatchMessage(
+      failed === 0
+        ? `Turno aplicado para ${applied} colaborador(es).`
+        : `${applied} aplicado(s), ${failed} não puderam ser salvos (turno já editado por outra pessoa).`,
+    );
+    setBatchState("idle");
+    setBatchDraft(null);
+    setBatchMode(false);
+    setBatchSelection(new Set());
+    setRefreshKey((value) => value + 1);
+  };
   const runValidation = useCallback(async () => {
     if (!weekId || weekRevision === null) return;
     setValidationState("running");
@@ -987,15 +1063,28 @@ export function ScheduleWorkspace() {
           )}
           <h2>Turnos e conformidade</h2>
         </div>
-        <label className="search">
-          <Search size={16} />
-          <input
-            ref={searchInputRef}
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar colaborador (/)"
-          />
-        </label>
+        <div className="day-heading-actions">
+          <button
+            type="button"
+            className={`outline batch-toggle ${batchMode ? "active" : ""}`}
+            onClick={() => {
+              setBatchMode((value) => !value);
+              setBatchSelection(new Set());
+              setBatchMessage("");
+            }}
+          >
+            {batchMode ? "Cancelar seleção" : "Selecionar vários"}
+          </button>
+          <label className="search">
+            <Search size={16} />
+            <input
+              ref={searchInputRef}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar colaborador (/)"
+            />
+          </label>
+        </div>
       </section>
       <section className={`summary ${blocked ? "has-problem" : ""}`}>
         <div>
@@ -1159,9 +1248,19 @@ export function ScheduleWorkspace() {
                     key={employee.name}
                   >
                     <div className="person">
-                      <span className="person-avatar">
-                        {initials(employee.name)}
-                      </span>
+                      {batchMode ? (
+                        <input
+                          type="checkbox"
+                          className="batch-checkbox"
+                          checked={batchSelection.has(employeeIds[employee.name] ?? "")}
+                          onChange={() => toggleBatchSelection(employeeIds[employee.name] ?? "")}
+                          aria-label={`Selecionar ${employee.name}`}
+                        />
+                      ) : (
+                        <span className="person-avatar">
+                          {initials(employee.name)}
+                        </span>
+                      )}
                       <strong>{employee.name}</strong>
                       <button
                         className="edit-shift"
@@ -1327,6 +1426,111 @@ export function ScheduleWorkspace() {
         )}
       </section>
         </>
+      )}
+      {batchMode && batchSelection.size > 0 && (
+        <div className="batch-bar">
+          <span>{batchSelection.size} colaborador(es) selecionado(s)</span>
+          <div className="batch-bar-actions">
+            <button className="outline" type="button" onClick={() => setBatchSelection(new Set())}>
+              Limpar seleção
+            </button>
+            <button className="solid" type="button" onClick={openBatchApply}>
+              <Clock3 size={15} />
+              Aplicar turno para {batchSelection.size}
+            </button>
+          </div>
+        </div>
+      )}
+      {batchMessage && !batchDraft && (
+        <p className={`validation-message ${batchMessage.includes("não") ? "idle" : "passed"}`}>{batchMessage}</p>
+      )}
+      {batchDraft && (
+        <div className="editor-backdrop" role="presentation">
+          <section className="shift-editor" role="dialog" aria-modal="true" aria-labelledby="batch-editor-title">
+            <div className="editor-head">
+              <div>
+                <p className="eyebrow">EDIÇÃO EM LOTE</p>
+                <h2 id="batch-editor-title">
+                  {batchSelection.size} colaborador{batchSelection.size === 1 ? "" : "es"}
+                </h2>
+                <p>{dates[selectedDay].label}</p>
+              </div>
+              <button
+                className="editor-close"
+                type="button"
+                onClick={() => setBatchDraft(null)}
+                aria-label="Fechar"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="shift-templates">
+              {shiftTemplates.map((template) => (
+                <span className="shift-template-chip" key={template.id}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setBatchDraft({
+                        start: template.start_time.slice(0, 5),
+                        breakStart: template.break_start_time.slice(0, 5),
+                        breakEnd: template.break_end_time.slice(0, 5),
+                        end: template.end_time.slice(0, 5),
+                      })
+                    }
+                  >
+                    {template.name}
+                    <small>
+                      {template.start_time.slice(0, 5)}–{template.end_time.slice(0, 5)}
+                    </small>
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="editor-times">
+              <label>
+                Entrada
+                <input
+                  type="time"
+                  value={batchDraft.start}
+                  onChange={(event) => setBatchDraft({ ...batchDraft, start: event.target.value })}
+                />
+              </label>
+              <label>
+                Início do intervalo
+                <input
+                  type="time"
+                  value={batchDraft.breakStart}
+                  onChange={(event) => setBatchDraft({ ...batchDraft, breakStart: event.target.value })}
+                />
+              </label>
+              <label>
+                Fim do intervalo
+                <input
+                  type="time"
+                  value={batchDraft.breakEnd}
+                  onChange={(event) => setBatchDraft({ ...batchDraft, breakEnd: event.target.value })}
+                />
+              </label>
+              <label>
+                Saída
+                <input
+                  type="time"
+                  value={batchDraft.end}
+                  onChange={(event) => setBatchDraft({ ...batchDraft, end: event.target.value })}
+                />
+              </label>
+            </div>
+            {batchMessage && <p className="editor-message error">{batchMessage}</p>}
+            <div className="editor-actions">
+              <button className="outline" type="button" onClick={() => setBatchDraft(null)}>
+                Cancelar
+              </button>
+              <button className="solid" type="button" disabled={batchState === "saving"} onClick={submitBatchApply}>
+                {batchState === "saving" ? "Salvando..." : `Aplicar para ${batchSelection.size}`}
+              </button>
+            </div>
+          </section>
+        </div>
       )}
       {editDraft && (
         <div className="editor-backdrop" role="presentation">
