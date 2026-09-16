@@ -134,6 +134,19 @@ type ValidationIssue = {
   evidence?: Record<string, unknown>;
 };
 
+const statusToneClass: Record<string, string> = {
+  good: "bg-brand-soft text-brand-dark",
+  bad: "bg-danger-soft text-danger",
+  warn: "bg-warn-soft text-warn",
+  neutral: "bg-line-soft text-muted",
+};
+const pillBase = "rounded-[6px] py-[5px] px-2 text-[10px] font-bold tracking-[-0.01em] whitespace-nowrap";
+const outlineBtn =
+  "h-[38px] px-[13px] rounded-sm text-xs font-bold inline-flex items-center gap-[7px] bg-surface border border-line text-ink-soft hover:border-[#c7cfda] hover:bg-[#fafbfc] disabled:opacity-50";
+const solidBtn =
+  "h-[38px] px-[13px] rounded-sm text-xs font-bold inline-flex items-center gap-[7px] bg-brand border border-brand text-white hover:bg-brand-dark disabled:opacity-50";
+const cardClass = "bg-surface border border-line rounded-md shadow-xs";
+
 export function ScheduleWorkspace() {
   const store = useStore();
   const [weekStart, setWeekStart] = useState(() => mondayOf(todayIso()));
@@ -1028,29 +1041,27 @@ export function ScheduleWorkspace() {
       fileName: `escala_${employee.name.replace(/\s+/g, "_")}_${weekStart}.pdf`,
     });
   };
+  const publishDisabled = validationState !== "passed" || blocked > 0;
+
   return (
     <>
-      <section className="hero">
+      <section className="flex items-end justify-between gap-5 flex-wrap bg-surface border border-line rounded-lg shadow-xs px-[26px] py-5">
         <div>
-          <p className="eyebrow">PLANEJAMENTO OPERACIONAL</p>
-          <h1>Escala da semana</h1>
-          <p className="subtitle">
+          <p className="text-[10.5px] font-bold tracking-[0.08em] uppercase text-brand mb-2">PLANEJAMENTO OPERACIONAL</p>
+          <h1 className="text-[23px] font-bold tracking-[-0.03em] m-0 text-ink">Escala da semana</h1>
+          <p className="text-[13px] text-muted mt-1.5 tracking-[-0.01em]">
             {weekRangeLabel(weekStart)} ·{" "}
             {weekId
               ? `Dados carregados do Supabase · revisão ${weekRevision}`
               : "Nenhuma escala importada para esta semana"}
           </p>
-          {validationMessage && (
-            <p className={`validation-message ${validationState}`}>
-              {validationMessage}
-            </p>
-          )}
-          {copyMessage && <p className="validation-message idle">{copyMessage}</p>}
-          {xlsxImportError && <p className="validation-message failed">{xlsxImportError}</p>}
+          {validationMessage && <p>{validationMessage}</p>}
+          {copyMessage && <p>{copyMessage}</p>}
+          {xlsxImportError && <p>{xlsxImportError}</p>}
         </div>
-        <div className="hero-actions">
+        <div className="flex gap-[9px] flex-wrap">
           {store && (
-            <button className="outline" disabled={copyState === "copying"} onClick={copyPreviousWeek}>
+            <button className={outlineBtn} disabled={copyState === "copying"} onClick={copyPreviousWeek}>
               <FileDown size={16} />
               {copyState === "copying" ? "Copiando..." : "Copiar semana anterior"}
             </button>
@@ -1067,14 +1078,14 @@ export function ScheduleWorkspace() {
                   if (file) handleXlsxFileSelected(file);
                 }}
               />
-              <button className="outline" disabled={xlsxImportState === "parsing"} onClick={pickXlsxFile}>
+              <button className={outlineBtn} disabled={xlsxImportState === "parsing"} onClick={pickXlsxFile}>
                 <Upload size={16} />
                 {xlsxImportState === "parsing" ? "Lendo planilha..." : "Importar planilha (.xlsx)"}
               </button>
             </>
           )}
           <button
-            className="outline"
+            className={outlineBtn}
             disabled={
               !weekId ||
               weekRevision === null ||
@@ -1087,32 +1098,28 @@ export function ScheduleWorkspace() {
               ? "Validando..."
               : "Validar escala"}
           </button>
-          <button className="outline" onClick={() => window.print()}>
+          <button className={outlineBtn} onClick={() => window.print()}>
             <FileDown size={16} />
             Imprimir mural
           </button>
-          <button className="outline" onClick={toggleMural} disabled={viewMode !== "week"}>
+          <button className={outlineBtn} onClick={toggleMural} disabled={viewMode !== "week"}>
             <Monitor size={16} />
             Modo mural (tela cheia)
           </button>
-          <button className="outline" onClick={exportCsv} disabled={!weekId}>
+          <button className={outlineBtn} onClick={exportCsv} disabled={!weekId}>
             <FileDown size={16} />
             Exportar CSV
           </button>
-          <button className="outline" onClick={exportPdf} disabled={!weekId}>
+          <button className={outlineBtn} onClick={exportPdf} disabled={!weekId}>
             <FileDown size={16} />
             Exportar PDF
           </button>
           <Link
-            className={`solid button-link ${validationState !== "passed" || blocked > 0 ? "disabled" : ""}`}
-            to={
-              validationState !== "passed" || blocked > 0
-                ? "#"
-                : "/app/publications"
-            }
-            aria-disabled={validationState !== "passed" || blocked > 0}
+            className={`${solidBtn} no-underline ${publishDisabled ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`}
+            to={publishDisabled ? "#" : "/app/publications"}
+            aria-disabled={publishDisabled}
             onClick={(event) => {
-              if (validationState !== "passed" || blocked > 0) event.preventDefault();
+              if (publishDisabled) event.preventDefault();
             }}
           >
             <ShieldCheck size={16} />
@@ -1120,17 +1127,21 @@ export function ScheduleWorkspace() {
           </Link>
         </div>
       </section>
-      <div className="view-toggle">
+      <div className="inline-flex bg-white border border-line rounded-[9px] p-[3px] gap-[3px] mt-6">
         <button
           type="button"
-          className={viewMode === "week" ? "active" : ""}
+          className={`border-0 text-[12px] font-bold py-[7px] px-4 rounded-[6px] cursor-pointer ${
+            viewMode === "week" ? "bg-brand-soft text-brand-dark" : "bg-transparent text-[#7b8798]"
+          }`}
           onClick={() => setViewMode("week")}
         >
           Semana
         </button>
         <button
           type="button"
-          className={viewMode === "month" ? "active" : ""}
+          className={`border-0 text-[12px] font-bold py-[7px] px-4 rounded-[6px] cursor-pointer ${
+            viewMode === "month" ? "bg-brand-soft text-brand-dark" : "bg-transparent text-[#7b8798]"
+          }`}
           onClick={() => {
             setMonthStart(startOfMonth(weekStart));
             setViewMode("month");
@@ -1151,9 +1162,9 @@ export function ScheduleWorkspace() {
       )}
       {viewMode === "week" && (
         <>
-      <section className="week-strip">
+      <section className="flex bg-white border border-line rounded-md p-[7px] my-8 gap-[5px] shadow-[0_1px_2px_#10182808] max-[700px]:overflow-auto max-[700px]:my-6">
         <button
-          className="arrow"
+          className="border-0 bg-transparent text-[#8390a2] px-[7px] max-[700px]:hidden"
           aria-label="Semana anterior"
           onClick={() => goToWeek(addDays(weekStart, -7))}
         >
@@ -1162,37 +1173,45 @@ export function ScheduleWorkspace() {
         {dates.map((day, index) => (
           <button
             key={day.iso}
-            className={`day ${selectedDay === index ? "active" : ""} ${isHoliday(day.iso) ? "is-holiday" : ""}`}
+            className={`flex-1 min-w-[75px] max-[700px]:min-w-[56px] border-0 rounded-[7px] py-2 px-[5px] grid gap-[2px] place-items-center ${
+              selectedDay === index ? "bg-brand-soft text-brand-dark" : "bg-transparent text-[#7b8798]"
+            } ${isHoliday(day.iso) ? "shadow-[inset_0_-3px_0_#d9822b]" : ""}`}
             onClick={() => setSelectedDay(index)}
           >
-            <span>{day.weekday}</span>
-            <strong>{day.date}</strong>
+            <span className="text-[10px] uppercase font-bold">{day.weekday}</span>
+            <strong className="text-[16px]">{day.date}</strong>
           </button>
         ))}
         <button
-          className="arrow"
+          className="border-0 bg-transparent text-[#8390a2] px-[7px] max-[700px]:hidden"
           aria-label="Próxima semana"
           onClick={() => goToWeek(addDays(weekStart, 7))}
         >
           <ChevronRight size={18} />
         </button>
       </section>
-      <div ref={muralRef} className={isMural ? "mural-active" : ""}>
-      <section className="day-heading">
+      <div ref={muralRef} className={isMural ? "bg-canvas p-[28px_40px_60px] min-h-screen overflow-y-auto [&_.edit-shift]:hidden [&_.mural-search-box]:hidden" : ""}>
+      <section className="flex justify-between items-end mb-[15px] max-[700px]:items-start max-[700px]:gap-[13px] max-[700px]:flex-col">
         <div>
-          <div className="date-pill">
+          <div className="text-[#6d7b8d] text-[11px] flex gap-[6px] items-center">
             <CalendarDays size={15} />
             {dates[selectedDay].label}
           </div>
           {isHoliday(dates[selectedDay].iso) && (
-            <span className="holiday-badge">Feriado · {holidayByIso.get(dates[selectedDay].iso)}</span>
+            <span className="inline-block mt-[6px] py-[3px] px-[9px] rounded-full bg-[#fdf1e2] text-[#a35b12] text-[11px] font-semibold">
+              Feriado · {holidayByIso.get(dates[selectedDay].iso)}
+            </span>
           )}
-          <h2>Turnos e conformidade</h2>
+          <h2 className="text-[20px] tracking-[-0.5px] mt-[7px] mb-0">Turnos e conformidade</h2>
         </div>
-        <div className="day-heading-actions">
+        <div className="flex items-center gap-[10px] max-[700px]:flex-wrap max-[700px]:justify-end">
           <button
             type="button"
-            className={`outline batch-toggle ${batchMode ? "active" : ""}`}
+            className={`h-[38px] px-[13px] text-[11px] font-bold whitespace-nowrap rounded-sm ${
+              batchMode
+                ? "bg-brand-soft text-brand-dark border border-[#b7ddcd]"
+                : `${outlineBtn}`
+            }`}
             onClick={() => {
               setBatchMode((value) => !value);
               setBatchSelection(new Set());
@@ -1201,10 +1220,11 @@ export function ScheduleWorkspace() {
           >
             {batchMode ? "Cancelar seleção" : "Selecionar vários"}
           </button>
-          <label className="search">
+          <label className="mural-search-box w-[210px] max-[700px]:w-full h-[37px] border border-[#dce2e8] bg-white rounded-[7px] flex items-center gap-[7px] text-[#8290a1] px-[10px]">
             <Search size={16} />
             <input
               ref={searchInputRef}
+              className="border-0 outline-none w-full text-[12px] text-[#334155]"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Buscar colaborador (/)"
@@ -1212,20 +1232,24 @@ export function ScheduleWorkspace() {
           </label>
         </div>
       </section>
-      <section className={`summary ${blocked ? "has-problem" : ""}`}>
-        <div>
-          <span className="summary-dot green" />
-          <strong>{working.length}</strong>
+      <section
+        className={`flex items-center gap-5 rounded-[9px] py-3 px-[15px] mb-[29px] border ${
+          blocked ? "bg-[#fff5f3] border-[#fed8d2]" : "bg-[#f0f8f4] border-[#d9ede3]"
+        } max-[700px]:gap-[13px] max-[700px]:flex-wrap`}
+      >
+        <div className="flex items-center gap-[6px] text-[11px] text-[#617083]">
+          <span className="w-[7px] h-[7px] rounded-full bg-[#30a47c]" />
+          <strong className="text-[15px] text-[#26354a]">{working.length}</strong>
           <span>em turno</span>
         </div>
-        <div>
-          <span className="summary-dot yellow" />
-          <strong>{off}</strong>
+        <div className="flex items-center gap-[6px] text-[11px] text-[#617083]">
+          <span className="w-[7px] h-[7px] rounded-full bg-[#e5a53f]" />
+          <strong className="text-[15px] text-[#26354a]">{off}</strong>
           <span>em folga</span>
         </div>
-        <div>
-          <span className="summary-dot purple" />
-          <strong>
+        <div className="flex items-center gap-[6px] text-[11px] text-[#617083]">
+          <span className="w-[7px] h-[7px] rounded-full bg-[#8b6ed8]" />
+          <strong className="text-[15px] text-[#26354a]">
             {working.reduce(
               (total, review) => total + dailyMinutes(review.shift!),
               0,
@@ -1240,45 +1264,47 @@ export function ScheduleWorkspace() {
           </strong>
           <span>programadas</span>
         </div>
-        <p>
-          <CircleAlert size={15} />
+        <p className="m-0 ml-auto text-[11px] text-[#64776d] flex gap-[5px] items-center max-[700px]:m-0 max-[700px]:w-full">
+          <CircleAlert size={15} className="text-[#b17c2f]" />
           {blocked
             ? `${blocked} bloqueio(s) encontrado(s).`
             : "Sem bloqueios de interjornada neste dia."}
         </p>
       </section>
-      <section className="week-summary-card">
-        <h2>Resumo da semana</h2>
-        <div className="week-summary-grid">
-          <div>
-            <strong>{weekSummary.totalMinutes ? formatMinutes(weekSummary.totalMinutes) : "0h00"}</strong>
-            <span>horas programadas</span>
+      <section className={`${cardClass} p-[16px_18px] mb-[27px]`}>
+        <h2 className="text-[13px] mb-3 mt-0 text-[#536174]">Resumo da semana</h2>
+        <div className="grid grid-cols-4 max-[700px]:grid-cols-2 gap-[14px]">
+          <div className="grid gap-[3px]">
+            <strong className="text-[20px] tracking-[-0.4px] text-[#167a62]">
+              {weekSummary.totalMinutes ? formatMinutes(weekSummary.totalMinutes) : "0h00"}
+            </strong>
+            <span className="text-[11px] text-[#7b8798]">horas programadas</span>
           </div>
-          <div>
-            <strong>{weekSummary.totalShifts}</strong>
-            <span>turnos no total</span>
+          <div className="grid gap-[3px]">
+            <strong className="text-[20px] tracking-[-0.4px] text-[#167a62]">{weekSummary.totalShifts}</strong>
+            <span className="text-[11px] text-[#7b8798]">turnos no total</span>
           </div>
-          <div>
-            <strong>{weekSummary.staffedCount}</strong>
-            <span>colaboradores escalados</span>
+          <div className="grid gap-[3px]">
+            <strong className="text-[20px] tracking-[-0.4px] text-[#167a62]">{weekSummary.staffedCount}</strong>
+            <span className="text-[11px] text-[#7b8798]">colaboradores escalados</span>
           </div>
-          <div>
-            <strong>{weekSummary.sundayWorkers}</strong>
-            <span>domingos trabalhados</span>
+          <div className="grid gap-[3px]">
+            <strong className="text-[20px] tracking-[-0.4px] text-[#167a62]">{weekSummary.sundayWorkers}</strong>
+            <span className="text-[11px] text-[#7b8798]">domingos trabalhados</span>
           </div>
         </div>
       </section>
-      <section className="hour-coverage-card">
-        <h2>Mapa de cobertura por hora · {dates[selectedDay].label}</h2>
-        <div className="hour-coverage-chart">
+      <section className={`${cardClass} p-[16px_18px_10px] mb-[27px]`}>
+        <h2 className="text-[13px] mb-4 mt-0 text-[#536174]">Mapa de cobertura por hora · {dates[selectedDay].label}</h2>
+        <div className="flex items-end gap-1 overflow-x-auto pb-1">
           {hourlyCoverage.map(({ hour, count }) => (
-            <div className="hour-coverage-bar" key={hour}>
-              <span className="hour-coverage-count">{count || ""}</span>
+            <div className="flex flex-col items-center justify-end min-w-[26px] flex-1" key={hour}>
+              <span className="text-[10px] font-bold text-[#167a62] h-[14px]">{count || ""}</span>
               <div
-                className={`hour-coverage-fill ${count === 0 ? "empty" : ""}`}
+                className={`w-full min-h-[3px] rounded-t-[4px] ${count === 0 ? "bg-[#edf0f2]" : "bg-[#56b499]"}`}
                 style={{ height: `${Math.min(100, count * 22)}px` }}
               />
-              <small>{String(hour).padStart(2, "0")}h</small>
+              <small className="mt-[6px] text-[9px] text-[#9aa6b5]">{String(hour).padStart(2, "0")}h</small>
             </div>
           ))}
         </div>
@@ -1297,32 +1323,30 @@ export function ScheduleWorkspace() {
         </section>
       )}
       {validationIssues.length > 0 && (
-        <section className="validation-panel" aria-live="polite">
-          <div className="validation-panel-head">
+        <section className="mb-7 p-[18px] border border-[#f1d6d1] rounded-md bg-[#fffafa]" aria-live="polite">
+          <div className="flex justify-between items-center gap-4 mb-[14px]">
             <div>
-              <p className="eyebrow">REVISÃO AUTORITATIVA</p>
-              <h2>Bloqueios e alertas encontrados</h2>
+              <p className="text-[10.5px] font-bold tracking-[0.08em] uppercase mb-[5px] text-[#ae473e]">REVISÃO AUTORITATIVA</p>
+              <h2 className="m-0 text-[#3c3030] text-[17px]">Bloqueios e alertas encontrados</h2>
             </div>
-            <span>{validationIssues.length} ocorrência(s)</span>
+            <span className="py-[5px] px-2 rounded-full bg-[#fce9e6] text-[#a63e35] text-[10px] font-extrabold">
+              {validationIssues.length} ocorrência(s)
+            </span>
           </div>
-          <div className="validation-list">
+          <div className="grid gap-2">
             {validationIssues.map((issue, index) => (
               <article
-                className={
-                  issue.blocking
-                    ? "validation-issue critical"
-                    : "validation-issue"
-                }
+                className="grid grid-cols-[185px_1fr_auto] max-[700px]:grid-cols-1 items-center gap-[14px] max-[700px]:gap-[6px] p-[11px] bg-white border border-[#eceff1] rounded-[7px]"
                 key={`${issue.rule_code}-${issue.entry_id ?? index}`}
               >
-                <div>
-                  <strong>
+                <div className="grid gap-1">
+                  <strong className="text-[#a63e35] text-[11px]">
                     {issue.blocking ? "Bloqueia publicação" : "Alerta"}
                   </strong>
-                  <span>{issue.rule_code}</span>
+                  <span className="text-[#7b8798] font-bold text-[10px] font-mono">{issue.rule_code}</span>
                 </div>
-                <p>{issue.message}</p>
-                <small>
+                <p className="m-0 text-[#4d596b] text-[12px] leading-[1.35]">{issue.message}</p>
+                <small className="text-[#68778a] text-[10px] whitespace-nowrap max-[700px]:whitespace-normal">
                   {scheduleEmployees.find(
                     (employee) =>
                       employeeIds[employee.name] === issue.employee_id,
@@ -1339,56 +1363,58 @@ export function ScheduleWorkspace() {
         );
         if (team.length === 0) return null;
         return (
-          <section className="sector" key={sector}>
-            <div className="sector-title">
-              <div>
+          <section className="mt-[27px]" key={sector}>
+            <div className="flex items-center justify-between mb-[10px]">
+              <div className="flex items-center gap-[9px]">
                 <span
-                  className="sector-marker"
+                  className="h-7 w-[5px] rounded-lg shrink-0"
                   style={{ background: colorBySector.get(sector) ?? "#8590a0" }}
                 />
                 <div>
-                  <h3>{sector}</h3>
-                  <p>
+                  <h3 className="text-[16px] m-0">{sector}</h3>
+                  <p className="text-[11px] text-[#7d8999] mt-[2px] mb-0">
                     {team.length} colaborador{team.length === 1 ? "" : "es"}
                   </p>
                 </div>
               </div>
             </div>
-            <div className="schedule-card">
-              <div className="schedule-header schedule-seven">
-                <span>Colaborador</span>
-                <span>1º período</span>
-                <span>Intervalo</span>
-                <span>2º período</span>
-                <span>Carga do dia</span>
-                <span>Interjornada</span>
-                <span>Domingo</span>
+            <div className={`${cardClass} overflow-hidden`}>
+              <div className="grid grid-cols-[minmax(170px,2.1fr)_repeat(6,minmax(108px,1fr))] items-center h-[38px] bg-[#f8fafb] border-b border-[#e9edf1] text-[#8590a0] text-[10px] font-extrabold uppercase tracking-[0.35px]">
+                <span className="pl-[17px]">Colaborador</span>
+                <span className="text-center">1º período</span>
+                <span className="text-center">Intervalo</span>
+                <span className="text-center">2º período</span>
+                <span className="text-center">Carga do dia</span>
+                <span className="text-center">Interjornada</span>
+                <span className="text-center">Domingo</span>
               </div>
               {team.map((review) => {
                 const { employee, shift } = review;
                 const sundayStatus = sundayDecision(review);
                 return (
                   <div
-                    className={`schedule-row schedule-seven ${!shift ? "day-off" : ""} ${review.blocked ? "blocked-row" : ""}`}
+                    className={`grid grid-cols-[minmax(170px,2.1fr)_repeat(6,minmax(108px,1fr))] items-center min-h-[58px] border-b border-[#edf0f2] last:border-b-0 max-[700px]:min-w-[590px] ${
+                      !shift ? "bg-[#fffcf3] [&_.person-avatar]:bg-[#f7eed4] [&_.person-avatar]:text-[#9b6d15]" : ""
+                    } ${review.blocked ? "bg-[#fff8f7]" : ""}`}
                     key={employee.name}
                   >
-                    <div className="person">
+                    <div className="flex gap-[10px] items-center pl-4 max-[700px]:pl-[10px]">
                       {batchMode ? (
                         <input
                           type="checkbox"
-                          className="batch-checkbox"
+                          className="h-5 w-5 accent-[#167a62]"
                           checked={batchSelection.has(employeeIds[employee.name] ?? "")}
                           onChange={() => toggleBatchSelection(employeeIds[employee.name] ?? "")}
                           aria-label={`Selecionar ${employee.name}`}
                         />
                       ) : (
-                        <span className="person-avatar">
+                        <span className="person-avatar h-7 w-7 rounded-full bg-[#e9f1ed] text-[#276a59] grid place-items-center text-[9px] font-extrabold shrink-0">
                           {initials(employee.name)}
                         </span>
                       )}
-                      <strong>{employee.name}</strong>
+                      <strong className="text-[12px] text-[#2c394d]">{employee.name}</strong>
                       <button
-                        className="edit-shift"
+                        className="edit-shift ml-auto mr-3"
                         type="button"
                         onClick={() => openEditor(employee, shift)}
                         aria-label={`Editar turno de ${employee.name}`}
@@ -1407,40 +1433,39 @@ export function ScheduleWorkspace() {
                     </div>
                     {shift ? (
                       <>
-                        <div className="period">
-                          <b>{workPeriod(shift.start, shift.breakStart)}</b>
-                          <small>
+                        <div className="text-center grid gap-[3px]">
+                          <b className="text-[11px] text-[#36465d] font-normal">{workPeriod(shift.start, shift.breakStart)}</b>
+                          <small className="text-[10px] text-[#7b8798]">
                             {periodDuration(shift.start, shift.breakStart)}
                           </small>
                         </div>
-                        <div className="interval">
-                          <b>
+                        <div className="text-center grid gap-[3px]">
+                          <b className="text-[11px] text-[#66542b] font-normal">
                             {workPeriod(shift.breakStart, shift.breakEnd)}
                           </b>
-                          <small>
+                          <small className="text-[10px] text-[#9b8350]">
                             {periodDuration(
                               shift.breakStart,
                               shift.breakEnd,
                             )}
                           </small>
                         </div>
-                        <div className="period">
-                          <b>{workPeriod(shift.breakEnd, shift.end)}</b>
-                          <small>
+                        <div className="text-center grid gap-[3px]">
+                          <b className="text-[11px] text-[#36465d] font-normal">{workPeriod(shift.breakEnd, shift.end)}</b>
+                          <small className="text-[10px] text-[#7b8798]">
                             {periodDuration(shift.breakEnd, shift.end)}
                           </small>
                         </div>
-                        <div className="load">
-                          <Clock3 size={14} />
+                        <div className="flex justify-center items-center gap-[5px] text-[12px] font-[750] text-[#3e4d62]">
+                          <Clock3 size={14} className="text-[#72849c]" />
                           {formatMinutes(dailyMinutes(shift))}
                         </div>
                         <div
-                          className={
-                            review.rest !== undefined &&
-                            review.rest < interjourneyMinMinutes
-                              ? "status bad"
-                              : "status good"
-                          }
+                          className={`justify-self-center ${pillBase} ${
+                            review.rest !== undefined && review.rest < interjourneyMinMinutes
+                              ? statusToneClass.bad
+                              : statusToneClass.good
+                          }`}
                         >
                           {review.rest === undefined
                             ? "Sem histórico"
@@ -1448,14 +1473,12 @@ export function ScheduleWorkspace() {
                               ? `${formatMinutes(review.rest)} · Bloquear`
                               : `${formatMinutes(review.rest)} · OK`}
                         </div>
-                        <div
-                          className={`status ${sunday ? sundayStatus.kind : "neutral"}`}
-                        >
+                        <div className={`justify-self-center ${pillBase} ${statusToneClass[sunday ? sundayStatus.kind : "neutral"]}`}>
                           {sunday ? sundayStatus.text : "—"}
                         </div>
                       </>
                     ) : (
-                      <div className="off-label">
+                      <div className="[grid-column:2/8] justify-self-stretch mr-[17px] rounded-[5px] text-center py-[5px] bg-[#fff3bf] text-[#9a6c14] uppercase text-[10px] font-extrabold tracking-[0.5px]">
                         {dayTypeShortLabel[
                           dayTypeByEmployeeDay.get(employeeIds[review.employee.name] ?? "")?.get(dates[selectedDay].iso) ?? "off"
                         ]}
@@ -1469,22 +1492,22 @@ export function ScheduleWorkspace() {
         );
       })}
       </div>
-      <section className="audit">
-        <div className="audit-title">
+      <section className="mt-[38px] p-[26px] max-[700px]:p-[17px] rounded-[15px] bg-white border border-[#e2eae6] shadow-[0_8px_24px_rgba(16,42,67,.04)]">
+        <div className="flex items-end justify-between mb-[13px]">
           <div>
-            <p className="eyebrow">COMPLIANCE GUARD</p>
-            <h2>Histórico e decisão de escala</h2>
-            <p>
+            <p className="text-[10.5px] font-bold tracking-[0.08em] uppercase text-brand mb-[7px]">COMPLIANCE GUARD</p>
+            <h2 className="text-[20px] tracking-[-0.5px] m-0">Histórico e decisão de escala</h2>
+            <p className="text-[12px] text-[#748196] mt-[5px] mb-0">
               Entrada, intervalo, retorno e saída dos três dias anteriores.
             </p>
           </div>
-          <span className="audit-rule">
+          <span className="bg-[#f2f4f7] rounded-full py-[6px] px-[9px] text-[10px] text-[#5e6b7c] font-bold whitespace-nowrap">
             Mínimo de {formatMinutes(interjourneyMinMinutes)} entre jornadas
           </span>
         </div>
-        <div className="audit-card">
-          <div className="audit-head">
-            <span>Colaborador</span>
+        <div className="border border-[#e1e6eb] rounded-[9px] bg-white overflow-auto">
+          <div className="min-w-[820px] grid grid-cols-[170px_minmax(290px,1.8fr)_minmax(160px,1fr)_135px] items-center h-[38px] bg-[#f8fafb] text-[#8490a0] text-[10px] font-extrabold uppercase tracking-[0.35px]">
+            <span className="pl-4">Colaborador</span>
             <span>Últimos 3 dias</span>
             <span>Dias seguidos antes de hoje</span>
             <span>Decisão</span>
@@ -1495,7 +1518,7 @@ export function ScheduleWorkspace() {
               addDays(dates[selectedDay].iso, -daysAgo),
             );
             const history = historyIsos.map((iso) => timeline?.get(iso) ?? null);
-            const decision = !review.shift
+            const decision: [string, string] = !review.shift
               ? ["Folga", "neutral"]
               : sunday
                 ? [sundayDecision(review).text, sundayDecision(review).kind]
@@ -1503,21 +1526,26 @@ export function ScheduleWorkspace() {
                   ? ["Bloquear escala", "bad"]
                   : ["Pode trabalhar", "good"];
             return (
-              <div className="audit-row" key={review.employee.name}>
-                <strong>{review.employee.name}</strong>
-                <div className="history">
+              <div
+                className="min-w-[820px] grid grid-cols-[170px_minmax(290px,1.8fr)_minmax(160px,1fr)_135px] items-center min-h-[53px] border-t border-[#edf0f2]"
+                key={review.employee.name}
+              >
+                <strong className="pl-4 text-[12px] text-[#314056]">{review.employee.name}</strong>
+                <div className="flex gap-[5px]">
                   {history.map((shift, index) => (
                     <span
                       key={historyIsos[index]}
-                      className={!shift ? "history-off" : ""}
+                      className={`border rounded-[5px] py-1 px-[6px] text-[10px] whitespace-nowrap ${
+                        !shift ? "bg-[#fff9df] border-[#f4e5a3] text-[#9b711b]" : "border-[#e6ebef] text-[#536174]"
+                      }`}
                     >
-                      <b>{weekdayShort(historyIsos[index])}</b>
+                      <b className="text-[9px] text-[#8590a0] mr-1 font-normal">{weekdayShort(historyIsos[index])}</b>
                       {shift ? (
                         <>
-                          <em>
+                          <em className="not-italic text-[9px] leading-[1.25]">
                             {shift.start}–{shift.breakStart}
                           </em>
-                          <em>
+                          <em className="not-italic text-[9px] leading-[1.25]">
                             {shift.breakEnd}–{shift.end}
                           </em>
                         </>
@@ -1527,20 +1555,18 @@ export function ScheduleWorkspace() {
                     </span>
                   ))}
                 </div>
-                <div className="streak">
+                <div className="text-[11px] text-[#66758a]">
                   {review.unknownHistory
                     ? "Histórico anterior não importado"
                     : `${review.streak} dia${review.streak === 1 ? "" : "s"} seguido${review.streak === 1 ? "" : "s"}`}
                 </div>
-                <span className={`decision ${decision[1]}`}>
-                  {decision[0]}
-                </span>
+                <span className={`justify-self-start ${pillBase} ${statusToneClass[decision[1]]}`}>{decision[0]}</span>
               </div>
             );
           })}
         </div>
         {sunday && (
-          <p className="legal-note">
+          <p className="text-[11px] leading-[1.55] text-[#69778a] bg-[#f7f8fa] rounded-[7px] py-[10px] px-3 mt-[10px]">
             Regra operacional ativa: cada pessoa escalada no domingo precisa
             ter uma folga entre segunda e sábado antes do domingo e outra
             entre segunda e sábado depois dele. O rodízio é calculado com os
@@ -1553,13 +1579,21 @@ export function ScheduleWorkspace() {
         </>
       )}
       {batchMode && batchSelection.size > 0 && (
-        <div className="batch-bar">
+        <div className="sticky bottom-4 z-20 flex items-center justify-between gap-[14px] bg-[#1d2939] text-white rounded-md py-3 px-4 my-4 text-[12px] shadow-[0_12px_28px_#10182833]">
           <span>{batchSelection.size} colaborador(es) selecionado(s)</span>
-          <div className="batch-bar-actions">
-            <button className="outline" type="button" onClick={() => setBatchSelection(new Set())}>
+          <div className="flex gap-2">
+            <button
+              className="h-[34px] px-3 rounded-[7px] text-[11px] font-bold inline-flex items-center gap-[6px] bg-transparent border border-[#475467] text-white"
+              type="button"
+              onClick={() => setBatchSelection(new Set())}
+            >
               Limpar seleção
             </button>
-            <button className="solid" type="button" onClick={openBatchApply}>
+            <button
+              className="h-[34px] px-3 rounded-[7px] text-[11px] font-bold inline-flex items-center gap-[6px] bg-brand border border-brand text-white hover:bg-brand-dark"
+              type="button"
+              onClick={openBatchApply}
+            >
               <Clock3 size={15} />
               Aplicar turno para {batchSelection.size}
             </button>
@@ -1886,16 +1920,18 @@ export function ScheduleWorkspace() {
           </section>
         </div>
       )}
-      <footer>
-        <span>
-          <i className="dot work" />
+      <footer className="mt-6 mb-[5px] py-[17px] px-[2px] flex gap-[18px] items-center text-[#8490a0] text-[10px] max-[700px]:flex-wrap">
+        <span className="flex items-center">
+          <i className="h-[7px] w-[7px] rounded-full inline-block mr-1 bg-[#3cab82]" />
           Turno programado
         </span>
-        <span>
-          <i className="dot rest" />
+        <span className="flex items-center">
+          <i className="h-[7px] w-[7px] rounded-full inline-block mr-1 bg-[#e6b542]" />
           Folga
         </span>
-        <span className="shortcuts-hint">Atalhos: ← → dia · / buscar · V validar · Esc fechar</span>
+        <span className="ml-auto max-[700px]:ml-0 max-[700px]:w-full">
+          Atalhos: ← → dia · / buscar · V validar · Esc fechar
+        </span>
       </footer>
     </>
   );
