@@ -6,15 +6,6 @@
   --green: #167a62;
   --cream: #fbfaf7;
 }
-.workspace {
-  min-height: 100vh;
-  background: var(--cream);
-}
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-}
 .hero-actions {
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -90,129 +81,6 @@
   --surface: #ffffff;
   --canvas: #f5f7f6;
   --emerald: #087b61;
-}
-.workspace {
-  background: var(--canvas);
-  color: var(--navy);
-  display: flex;
-}
-.app-sidebar {
-  position: fixed;
-  inset: 0 auto 0 0;
-  z-index: 25;
-  width: 224px;
-  padding: 24px 14px;
-  background: #102a43;
-  color: #d8e4e5;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.sidebar-brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 9px 28px;
-  color: #fff;
-  font-size: 19px;
-  letter-spacing: -0.7px;
-}
-.sidebar-brand span {
-  color: #56d6aa;
-}
-.sidebar-brand .logo-dot {
-  height: 22px;
-  width: 22px;
-}
-.app-sidebar > p {
-  margin: 16px 9px 6px;
-  color: #7e9aa3;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 1.2px;
-}
-.app-sidebar a {
-  height: 39px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 10px;
-  border-radius: 8px;
-  color: #c3d2d6;
-  text-decoration: none;
-  font-size: 12px;
-  font-weight: 650;
-}
-.app-sidebar a:hover {
-  background: #1b415a;
-  color: #fff;
-}
-.app-sidebar a.active {
-  background: #187b62;
-  color: #fff;
-  box-shadow: 0 6px 14px #061a2c40;
-}
-.app-sidebar > small {
-  margin: auto 9px 3px;
-  padding: 13px 0 0;
-  border-top: 1px solid #29495d;
-  color: #7f99a2;
-  font-size: 10px;
-  line-height: 1.5;
-}
-.app-content {
-  min-width: 0;
-  flex: 1;
-  margin-left: 224px;
-}
-@media (max-width: 700px) {
-  .app-sidebar {
-    display: none;
-  }
-  .app-content {
-    margin-left: 0;
-  }
-}
-.topbar {
-  height: 76px;
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(16px);
-  box-shadow: 0 1px 0 rgba(16, 42, 67, 0.07);
-}
-.logo {
-  font-size: 20px;
-}
-.logo-dot {
-  width: 24px;
-  height: 24px;
-  border-radius: 8px;
-}
-.store-picker {
-  padding: 8px 20px;
-  border: 1px solid #e7eeeb;
-  border-radius: 9px;
-  min-width: 164px;
-}
-.store-picker small {
-  color: #7a8c86;
-}
-nav {
-  gap: 2px;
-}
-nav a {
-  border: 0;
-  border-radius: 8px;
-  margin: auto 0;
-  height: 38px;
-  padding: 0 14px;
-}
-nav a.selected {
-  background: #e8f7f1;
-  color: #087b61;
-}
-main {
-  max-width: 1180px;
-  padding: 40px 28px 64px;
 }
 .hero {
   align-items: center;
@@ -335,17 +203,11 @@ footer {
   padding: 17px 2px;
 }
 @media (max-width: 700px) {
-  main {
-    padding: 20px 15px 42px;
-  }
   .hero {
     padding: 23px 20px;
   }
   .hero h1 {
     font-size: 29px;
-  }
-  .store-picker {
-    display: none;
   }
   .summary > div {
     border: 0;
@@ -355,187 +217,6 @@ footer {
   .team-admin {
     padding: 17px;
   }
-}
-.topbar {
-  height: 72px;
-  background: #fff;
-  border-bottom: 1px solid var(--line);
-  padding: 0 max(24px, calc((100vw - 1180px) / 2));
-  display: flex;
-  align-items: center;
-  gap: 32px;
-}
-.logo {
-  display: none;
-  align-items: center;
-  gap: 8px;
-  font-size: 19px;
-  letter-spacing: -0.8px;
-  color: #172235;
-}
-.logo strong span {
-  color: #168263;
-}
-.logo-dot {
-  height: 20px;
-  width: 20px;
-  border-radius: 6px;
-  background: linear-gradient(135deg, #80db94, #1c8664);
-  box-shadow: inset 0 0 0 4px #e6f6e9;
-}
-.store-picker {
-  border-left: 1px solid #e5e7eb;
-  border-top: 0;
-  border-right: 0;
-  border-bottom: 0;
-  padding-left: 25px;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  column-gap: 12px;
-  line-height: 1.15;
-  font-size: 12px;
-  color: #263346;
-  background: transparent;
-  cursor: pointer;
-  font-family: inherit;
-  text-align: left;
-}
-.store-picker span {
-  font-weight: 700;
-}
-.store-picker small {
-  grid-column: 1;
-  color: #8390a0;
-  font-size: 10px;
-  margin-top: 4px;
-}
-.store-picker svg {
-  grid-column: 2;
-  grid-row: 1/3;
-  align-self: center;
-  color: #8793a2;
-}
-.store-switcher {
-  position: relative;
-}
-.dropdown-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  background: transparent;
-  border: 0;
-  cursor: default;
-}
-.store-switcher-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 25px;
-  z-index: 41;
-  width: 260px;
-  background: #fff;
-  border: 1px solid #e1e6eb;
-  border-radius: 10px;
-  box-shadow: 0 12px 28px #10182814;
-  padding: 8px;
-  display: grid;
-  gap: 2px;
-}
-.store-switcher-option {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  border: 0;
-  background: transparent;
-  border-radius: 7px;
-  padding: 9px 10px;
-  font-size: 12px;
-  color: #2b394e;
-  text-align: left;
-  cursor: pointer;
-}
-.store-switcher-option:hover {
-  background: #f4f7f6;
-}
-.store-switcher-option.active {
-  background: #eaf6f0;
-  color: #167a62;
-  font-weight: 700;
-}
-.store-switcher-divider {
-  height: 1px;
-  background: #edf0f2;
-  margin: 6px 2px;
-}
-.store-switcher-form {
-  display: grid;
-  gap: 8px;
-  padding: 8px 10px 10px;
-}
-.store-switcher-form-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 11px;
-  font-weight: 700;
-  color: #4e5d71;
-}
-.store-switcher-form-head button {
-  border: 0;
-  background: transparent;
-  color: #8590a0;
-  cursor: pointer;
-}
-.store-switcher-form input {
-  height: 34px;
-  border: 1px solid #dce3e8;
-  border-radius: 6px;
-  padding: 0 9px;
-  font-size: 12px;
-}
-.store-switcher-form-row {
-  display: grid;
-  grid-template-columns: 1fr 60px;
-  gap: 8px;
-}
-.store-switcher-message {
-  font-size: 11px;
-  color: #b23d34;
-  margin: 0;
-}
-.store-switcher-form button[type="submit"] {
-  height: 34px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 700;
-}
-nav {
-  display: flex;
-  align-self: stretch;
-  margin-left: auto;
-  gap: 7px;
-}
-nav a {
-  color: #69778a;
-  text-decoration: none;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 0 13px;
-  border-bottom: 2px solid transparent;
-}
-nav a.selected {
-  color: #19795f;
-  border-color: #19795f;
-  font-weight: 700;
-}
-.menu {
-  display: none;
-  border: 0;
-  background: #f5f7f9;
-  border-radius: 7px;
-  padding: 8px;
-  color: #344054;
 }
 main {
   max-width: 1100px;
@@ -1203,25 +884,6 @@ footer span:last-child {
   background: #e6b542;
 }
 @media (max-width: 700px) {
-  .topbar {
-    height: 62px;
-    padding: 0 18px;
-    gap: 16px;
-  }
-  .store-picker,
-  nav {
-    display: none;
-  }
-  .logo {
-    display: flex;
-  }
-  .menu {
-    display: block;
-    margin-left: auto;
-  }
-  main {
-    padding: 29px 16px;
-  }
   .hero {
     align-items: start;
     flex-direction: column;
@@ -1827,42 +1489,6 @@ footer span:last-child {
   }
 }
 
-/* Sidebar navigation and mobile drawer */
-.sidebar-brand {
-  position: relative;
-}
-.sidebar-close {
-  display: none;
-  margin-left: auto;
-  border: 0;
-  background: transparent;
-  color: #d8e4e5;
-  padding: 4px;
-}
-.sidebar-backdrop {
-  display: none;
-}
-@media (max-width: 700px) {
-  .app-sidebar {
-    display: none;
-  }
-  .app-sidebar.open {
-    display: flex;
-    position: fixed;
-    z-index: 45;
-  }
-  .sidebar-close {
-    display: block;
-  }
-  .sidebar-backdrop {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: 40;
-    border: 0;
-    background: rgba(16, 42, 67, 0.44);
-  }
-}
 
 /* Simple hero variant for pages without header actions */
 .hero-simple {
@@ -2288,20 +1914,22 @@ body {
   background: var(--canvas);
   color: var(--ink);
 }
-.workspace {
-  background: var(--canvas);
-}
 
-/* Typography — one weight/letter-spacing scale everywhere instead of each page picking its own */
-h1,
-h2,
-h3,
-h4,
-h5 {
-  font-family: inherit;
-  color: var(--ink);
-  letter-spacing: -0.02em;
-  font-weight: 650;
+/* Typography — one weight/letter-spacing scale everywhere instead of each page picking its own.
+   Wrapped in @layer base so Tailwind utility classes on headings (text-*, tracking-*, font-*,
+   used throughout the migrated pages) still win — an unlayered rule here would always beat a
+   Tailwind utility regardless of specificity, per the CSS cascade-layers spec. */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5 {
+    font-family: inherit;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+    font-weight: 650;
+  }
 }
 .eyebrow {
   font-size: 10.5px;
@@ -2371,108 +1999,6 @@ h5 {
 .solid:disabled {
   opacity: 0.5;
   cursor: default;
-}
-
-/* Sidebar + topbar */
-.app-sidebar {
-  background: var(--sidebar-bg);
-  width: 228px;
-  padding: 22px 12px;
-}
-.sidebar-brand {
-  padding: 0 10px 24px;
-}
-.app-sidebar a {
-  color: var(--sidebar-text);
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-}
-.app-sidebar a:hover {
-  background: var(--sidebar-hover);
-  color: #fff;
-}
-.app-sidebar a.active {
-  background: var(--brand);
-  color: #fff;
-  box-shadow: none;
-}
-.app-content {
-  margin-left: 228px;
-}
-@media (max-width: 700px) {
-  .app-content {
-    margin-left: 0;
-  }
-}
-
-/* Collapsible sidebar */
-.app-sidebar {
-  transition: width 0.16s ease;
-}
-.app-content {
-  transition: margin-left 0.16s ease;
-}
-.sidebar-collapse-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  height: 36px;
-  padding: 0 10px;
-  margin-top: 10px;
-  border: 0;
-  border-top: 1px solid #1e2a44;
-  border-radius: 0;
-  background: transparent;
-  color: var(--sidebar-text);
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.sidebar-collapse-toggle:hover {
-  color: #fff;
-}
-.workspace.sidebar-collapsed .app-sidebar {
-  width: 72px;
-  padding: 22px 10px;
-}
-.workspace.sidebar-collapsed .app-content {
-  margin-left: 72px;
-}
-.workspace.sidebar-collapsed .sidebar-brand {
-  justify-content: center;
-  padding: 0 0 24px;
-}
-.workspace.sidebar-collapsed .sidebar-brand strong {
-  display: none;
-}
-.workspace.sidebar-collapsed .app-sidebar a {
-  justify-content: center;
-  padding: 0;
-}
-.workspace.sidebar-collapsed .sidebar-collapse-toggle {
-  justify-content: center;
-}
-@media (max-width: 700px) {
-  .workspace.sidebar-collapsed .app-content {
-    margin-left: 0;
-  }
-  .sidebar-collapse-toggle {
-    display: none;
-  }
-}
-.topbar {
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
-  box-shadow: none;
-  backdrop-filter: none;
-}
-.logo-dot {
-  background: var(--brand);
-  box-shadow: none;
-}
-.sidebar-brand .logo-dot {
-  background: var(--brand);
 }
 
 /* Cards — every card-ish container across the app gets the same border/radius/shadow language */

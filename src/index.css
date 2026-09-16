@@ -125,42 +125,53 @@
 }
 
 /* ─── 3. RESET E BASE ───────────────────────────────────────────────────── */
+/* @layer base (not plain rules) so Tailwind utility classes on these same elements
+   (text-*, tracking-*, font-*, m-* etc., used throughout the app) still win — an
+   unlayered rule always beats a layered utility regardless of specificity, per the
+   CSS cascade-layers spec, which silently broke text-white on the active sidebar
+   link before this was layered. */
 
-*, *::before, *::after {
-  box-sizing: border-box;
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    background: var(--canvas);
+    font-family: var(--font-sans);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: inherit;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+    font-weight: 650;
+    margin: 0;
+  }
+
+  p { margin: 0; }
+
+  a {
+    color: var(--brand);
+    text-decoration: none;
+  }
+  a:hover { text-decoration: underline; }
+
+  button, input, select, textarea {
+    font: inherit;
+  }
+  button { cursor: pointer; }
 }
 
-body {
-  margin: 0;
-  min-width: 320px;
-  background: var(--canvas);
-  font-family: var(--font-sans);
-  color: var(--ink);
-  font-size: 14px;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-}
-
-h1, h2, h3, h4, h5, h6 {
-  font-family: inherit;
-  color: var(--ink);
-  letter-spacing: -0.02em;
-  font-weight: 650;
-  margin: 0;
-}
-
-p { margin: 0; }
-
-a {
-  color: var(--brand);
-  text-decoration: none;
-}
-a:hover { text-decoration: underline; }
-
-button, input, select, textarea {
-  font: inherit;
-}
-button { cursor: pointer; }
+/* Sections 4-16 are custom component classes (not resets), placed in @layer components
+   so Tailwind utilities combined with them (e.g. className="card mt-4") still win. */
+@layer components {
 
 /* ─── 4. TIPOGRAFIA — ESCALA ────────────────────────────────────────────── */
 
@@ -694,4 +705,6 @@ button { cursor: pointer; }
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
 }

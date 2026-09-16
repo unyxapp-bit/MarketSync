@@ -32,6 +32,12 @@ const managementLinks = [
   { to: "/app/settings", label: "Configurações", icon: Settings },
 ];
 
+const navLinkClass = (collapsed: boolean) =>
+  ({ isActive }: { isActive: boolean }) =>
+    `flex items-center gap-[10px] h-[39px] rounded-sm text-[12px] font-semibold no-underline hover:bg-sidebar-hover hover:text-white ${
+      collapsed ? "justify-center px-0" : "px-[10px]"
+    } ${isActive ? "bg-brand text-white" : "text-sidebar-text"}`;
+
 function NavGroup({
   title,
   links,
@@ -45,16 +51,11 @@ function NavGroup({
 }) {
   return (
     <>
-      {!collapsed && <p>{title}</p>}
+      {!collapsed && (
+        <p className="mt-4 mx-[9px] mb-1.5 text-[9px] font-extrabold tracking-[1.2px] text-[#7e9aa3]">{title}</p>
+      )}
       {links.map(({ to, label, icon: Icon, end }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end={end}
-          onClick={onNavigate}
-          className={({ isActive }) => (isActive ? "active" : "")}
-          title={collapsed ? label : undefined}
-        >
+        <NavLink key={to} to={to} end={end} onClick={onNavigate} className={navLinkClass(collapsed)} title={collapsed ? label : undefined}>
           <Icon size={17} />
           {!collapsed && label}
         </NavLink>
@@ -86,18 +87,22 @@ export function AppShell() {
   };
 
   return (
-    <div className={`workspace ${collapsed ? "sidebar-collapsed" : ""}`}>
+    <div className="min-h-screen bg-canvas flex">
       <aside
-        className={`app-sidebar ${mobileNavOpen ? "open" : ""}`}
+        className={`flex flex-col gap-1 fixed inset-y-0 left-0 z-[45] bg-sidebar transition-[width] duration-150 ease-in-out py-[22px] ${
+          collapsed ? "w-[72px] px-[10px]" : "w-[228px] px-3"
+        } ${mobileNavOpen ? "flex" : "max-[700px]:hidden"}`}
         aria-label="Navegação principal"
       >
-        <div className="sidebar-brand">
-          <span className="logo-dot" />
-          <strong>
-            Market<span>Sync</span>
-          </strong>
+        <div className={`flex items-center gap-2 relative pb-6 ${collapsed ? "justify-center px-0" : "px-[10px]"}`}>
+          <span className="h-[22px] w-[22px] rounded-[6px] bg-brand shrink-0" />
+          {!collapsed && (
+            <strong className="text-white text-[19px] tracking-[-0.7px]">
+              Market<span className="text-[#56d6aa]">Sync</span>
+            </strong>
+          )}
           <button
-            className="sidebar-close"
+            className="hidden max-[700px]:block ml-auto border-0 bg-transparent text-[#d8e4e5] p-1"
             type="button"
             onClick={closeMobileNav}
             aria-label="Fechar menu"
@@ -109,7 +114,9 @@ export function AppShell() {
         <NavGroup title="GESTÃO" links={managementLinks} onNavigate={closeMobileNav} collapsed={collapsed} />
         <button
           type="button"
-          className="sidebar-collapse-toggle"
+          className={`flex items-center gap-2 w-full h-9 px-[10px] mt-[10px] border-0 border-t border-t-[#1e2a44] bg-transparent text-sidebar-text text-[11px] font-semibold cursor-pointer hover:text-white max-[700px]:hidden ${
+            collapsed ? "justify-center" : ""
+          }`}
           onClick={toggleCollapsed}
           aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
           title={collapsed ? "Expandir menu" : "Recolher menu"}
@@ -118,7 +125,7 @@ export function AppShell() {
           {!collapsed && <span>Recolher</span>}
         </button>
         {!collapsed && (
-          <small>
+          <small className="mt-auto mx-[9px] mb-[3px] pt-[13px] border-t border-t-[#29495d] text-[#7f99a2] text-[10px] leading-[1.5]">
             Planejamento seguro
             <br />e rastreável
           </small>
@@ -126,22 +133,26 @@ export function AppShell() {
       </aside>
       {mobileNavOpen && (
         <button
-          className="sidebar-backdrop"
+          className="hidden max-[700px]:block fixed inset-0 z-40 border-0 bg-[rgba(16,42,67,0.44)]"
           aria-label="Fechar menu"
           onClick={closeMobileNav}
         />
       )}
-      <div className="app-content">
-        <header className="topbar">
-          <div className="logo">
-            <span className="logo-dot" />
+      <div
+        className={`min-w-0 flex-1 transition-[margin-left] duration-150 ease-in-out max-[700px]:ml-0 ${
+          collapsed ? "ml-[72px]" : "ml-[228px]"
+        }`}
+      >
+        <header className="sticky top-0 z-20 h-[72px] max-[700px]:h-[62px] bg-surface border-b border-line flex items-center gap-8 max-[700px]:gap-4 px-[max(24px,calc((100vw-1180px)/2))] max-[700px]:px-[18px]">
+          <div className="hidden max-[700px]:flex items-center gap-2 text-[19px] tracking-[-0.8px] text-[#172235]">
+            <span className="h-5 w-5 rounded-[6px] bg-brand" />
             <strong>
-              Market<span>Sync</span>
+              Market<span className="text-[#168263]">Sync</span>
             </strong>
           </div>
           <StoreSwitcher />
           <button
-            className="menu"
+            className="hidden max-[700px]:block ml-auto border-0 bg-[#f5f7f9] rounded-[7px] p-2 text-[#344054]"
             type="button"
             onClick={() => setMobileNavOpen(true)}
             aria-label="Abrir menu"
@@ -149,7 +160,7 @@ export function AppShell() {
             <Menu size={19} />
           </button>
         </header>
-        <main>
+        <main className="max-w-[1100px] mx-auto pt-11 pb-11 px-7 max-[700px]:pt-[29px] max-[700px]:pb-[29px] max-[700px]:px-4">
           <Outlet />
         </main>
       </div>
