@@ -13,6 +13,12 @@ import {
 
 type RosterEntry = { id: string; name: string; sector: string };
 
+const cellToneClass: Record<string, string> = {
+  work: "text-[#167a62] font-semibold",
+  off: "text-[#b6bfca]",
+  other: "text-[#a35b12] font-semibold",
+};
+
 const dayTypeLabel: Record<string, string> = {
   vacation: "Férias",
   leave: "Licença",
@@ -176,16 +182,31 @@ export function MonthlyView({
   }, [sectorList, employeeRoster]);
 
   return (
-    <section className="monthly-view">
-      <div className="monthly-view-head">
-        <button className="arrow" type="button" aria-label="Mês anterior" onClick={() => onChangeMonth(-1)}>
+    <section className="mt-5">
+      <div className="flex items-center gap-[10px] mb-[14px]">
+        <button
+          className="border-0 bg-transparent text-[#8390a2] px-[7px]"
+          type="button"
+          aria-label="Mês anterior"
+          onClick={() => onChangeMonth(-1)}
+        >
           <ChevronLeft size={18} />
         </button>
-        <strong>{monthLabel(monthStart)}</strong>
-        <button className="arrow" type="button" aria-label="Próximo mês" onClick={() => onChangeMonth(1)}>
+        <strong className="text-[16px] text-[#253247] min-w-[160px]">{monthLabel(monthStart)}</strong>
+        <button
+          className="border-0 bg-transparent text-[#8390a2] px-[7px]"
+          type="button"
+          aria-label="Próximo mês"
+          onClick={() => onChangeMonth(1)}
+        >
           <ChevronRight size={18} />
         </button>
-        <button className="outline monthly-export" type="button" onClick={exportHoursCsv} disabled={loading}>
+        <button
+          className="outline ml-auto h-[34px] px-3 inline-flex items-center gap-[6px] text-[11px] font-bold"
+          type="button"
+          onClick={exportHoursCsv}
+          disabled={loading}
+        >
           <FileDown size={15} />
           Exportar horas do mês (CSV)
         </button>
@@ -193,15 +214,22 @@ export function MonthlyView({
       {loading ? (
         <p className="empty">Carregando escala do mês...</p>
       ) : (
-        <div className="monthly-grid-wrap">
-          <table className="monthly-grid">
+        <div className="overflow-x-auto bg-surface border border-line rounded-md shadow-xs">
+          <table className="border-collapse text-[11px] w-full">
             <thead>
               <tr>
-                <th className="monthly-name-col">Colaborador</th>
+                <th className="sticky left-0 z-[1] bg-white !text-left !pl-3 min-w-[150px] font-bold text-[#253247] border-b border-[#edf0f2] py-[6px] px-1 whitespace-nowrap">
+                  Colaborador
+                </th>
                 {days.map((day) => (
-                  <th key={day.iso} className={day.weekday === "Dom" ? "monthly-sunday" : ""}>
-                    <span>{day.weekday}</span>
-                    <strong>{day.date}</strong>
+                  <th
+                    key={day.iso}
+                    className={`text-[#7b8798] font-bold pt-[10px] border-b border-[#edf0f2] py-[6px] px-1 text-center whitespace-nowrap ${
+                      day.weekday === "Dom" ? "bg-[#fdf6ee]" : ""
+                    }`}
+                  >
+                    <span className="block text-[9px] uppercase">{day.weekday}</span>
+                    <strong className="text-[12px] text-[#253247]">{day.date}</strong>
                   </th>
                 ))}
               </tr>
@@ -209,10 +237,13 @@ export function MonthlyView({
             <tbody>
               {sectionNames.map((sector) => (
                 <Fragment key={sector}>
-                  <tr className="monthly-sector-row">
-                    <td colSpan={days.length + 1}>
+                  <tr>
+                    <td
+                      colSpan={days.length + 1}
+                      className="text-left py-2 px-3 bg-[#f8fafb] text-[11px] font-bold text-[#4e5d71] flex items-center gap-2 border-b border-[#edf0f2]"
+                    >
                       <span
-                        className="sector-marker"
+                        className="h-[14px] w-1 rounded-[4px] shrink-0"
                         style={{ background: colorBySector.get(sector) ?? "#8590a0" }}
                       />
                       {sector}
@@ -222,7 +253,9 @@ export function MonthlyView({
                     .filter((employee) => employee.sector === sector)
                     .map((employee) => (
                       <tr key={employee.id}>
-                        <td className="monthly-name-col">{employee.name}</td>
+                        <td className="sticky left-0 z-[1] bg-white !text-left !pl-3 min-w-[150px] font-bold text-[#253247] border-b border-[#edf0f2] py-[6px] px-1 whitespace-nowrap">
+                          {employee.name}
+                        </td>
                         {days.map((day) => {
                           const entry = byEmployeeAndDate.get(employee.id)?.get(day.iso);
                           const summary = entry ? shiftSummary(entry) : null;
@@ -230,7 +263,11 @@ export function MonthlyView({
                           return (
                             <td
                               key={day.iso}
-                              className={`monthly-cell ${summary?.tone ?? ""} ${day.weekday === "Dom" ? "monthly-sunday" : ""} ${draggableCell ? "draggable" : ""}`}
+                              className={`cursor-pointer text-[#4d596b] hover:bg-[#f4f7f6] border-b border-[#edf0f2] py-[6px] px-1 text-center whitespace-nowrap ${
+                                summary?.tone ? cellToneClass[summary.tone] : ""
+                              } ${day.weekday === "Dom" ? "bg-[#fdf6ee]" : ""} ${
+                                draggableCell ? "cursor-grab active:cursor-grabbing" : ""
+                              }`}
                               onClick={() => onSelectDay(day.iso)}
                               draggable={draggableCell}
                               onDragStart={() => setDragSource({ employeeId: employee.id, date: day.iso })}
@@ -261,23 +298,28 @@ export function MonthlyView({
           </table>
         </div>
       )}
-      <p className="monthly-hint">
+      <p className="mt-[10px] text-[11px] text-[#8590a0]">
         Clique num dia para abrir a semana correspondente e editar · arraste um turno para outro
         dia da mesma semana para movê-lo.
         {moving ? " Movendo..." : ""}
       </p>
-      {moveMessage && <p className="monthly-move-message">{moveMessage}</p>}
+      {moveMessage && <p className="mt-[6px] text-[11px] text-[#167a62]">{moveMessage}</p>}
       {!loading && minutesByEmployee.size > 0 && (
-        <div className="monthly-hours-report">
-          <h3>Total de horas no mês</h3>
-          <div className="monthly-hours-list">
+        <div className="bg-surface border border-line rounded-md shadow-xs p-[14px_16px] mt-[14px]">
+          <h3 className="text-[12px] mb-[10px] m-0 text-[#536174]">Total de horas no mês</h3>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-[6px_14px]">
             {employeeRoster
               .filter((employee) => (minutesByEmployee.get(employee.id) ?? 0) > 0)
               .sort((a, b) => (minutesByEmployee.get(b.id) ?? 0) - (minutesByEmployee.get(a.id) ?? 0))
               .map((employee) => (
-                <div className="monthly-hours-row" key={employee.id}>
+                <div
+                  className="flex justify-between gap-[10px] text-[12px] py-[5px] border-b border-[#f2f4f6]"
+                  key={employee.id}
+                >
                   <span>{employee.name}</span>
-                  <strong>{formatMinutes(Math.round(minutesByEmployee.get(employee.id) ?? 0))}</strong>
+                  <strong className="text-[#167a62]">
+                    {formatMinutes(Math.round(minutesByEmployee.get(employee.id) ?? 0))}
+                  </strong>
                 </div>
               ))}
           </div>
