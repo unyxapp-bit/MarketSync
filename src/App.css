@@ -568,30 +568,6 @@ body {
   color: var(--brand);
   margin: 0 0 8px;
 }
-.hero h1,
-.hero-simple h1 {
-  font-size: 23px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  margin: 0;
-}
-.subtitle {
-  font-size: 13px;
-  color: var(--muted);
-  margin: 6px 0 0;
-  letter-spacing: -0.01em;
-}
-
-/* Page header — flat card instead of the soft radial-gradient "landing page" look */
-.hero,
-.hero-simple {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xs);
-  padding: 20px 26px;
-}
-
 /* Buttons */
 .outline,
 .solid {
